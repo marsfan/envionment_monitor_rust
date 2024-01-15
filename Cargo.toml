@@ -5,6 +5,9 @@ authors = ["Gabriel Roper <9311953+Marsfan@users.noreply.github.com>"]
 edition = "2021"
 resolver = "2"
 rust-version = "1.71"
+description = "Tool for monitoring the enivironment and publishing the data via MQTT"
+license = "MPL-2.0"
+keywords = ["esp32", "environment", "mqtt", "monitor"]
 
 [profile.release]
 opt-level = "s"
@@ -21,11 +24,42 @@ std = ["alloc", "esp-idf-svc/binstart", "esp-idf-svc/std"]
 alloc = ["esp-idf-svc/alloc"]
 nightly = ["esp-idf-svc/nightly"]
 experimental = ["esp-idf-svc/experimental"]
-embassy = ["esp-idf-svc/embassy-sync", "esp-idf-svc/critical-section", "esp-idf-svc/embassy-time-driver"]
+embassy = [
+    "esp-idf-svc/embassy-sync",
+    "esp-idf-svc/critical-section",
+    "esp-idf-svc/embassy-time-driver",
+]
 
 [dependencies]
 log = { version = "0.4", default-features = false }
 esp-idf-svc = { version = "0.47.3", default-features = false }
+esp-idf-hal = "0.42.5"
+# FIXME: Bump to 1.0.0 once esp-idf-hal supports it
+embedded-hal = "1.0.0-rc.1"
+thiserror = "1.0.56"
 
 [build-dependencies]
 embuild = "0.31.3"
+
+
+[lints.rust]
+missing_docs = "warn"
+deprecated-in-future = "warn"
+
+[lints.clippy]
+all = "warn"
+correctness = "warn"
+suspicious = "warn"
+complexity = "warn"
+perf = "warn"
+pedantic = "warn"
+cargo = "warn"
+
+# Individual rules instead of groups
+missing_docs_in_private_items = "warn"
+cargo_common_metadata = "warn"
+unwrap_in_result = "warn"
+match_bool = "warn"
+uninlined_format_args = "warn"
+needless_pass_by_value = "warn"
+explicit_iter_loop = "warn"
