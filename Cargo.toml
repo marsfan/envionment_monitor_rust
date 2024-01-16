@@ -39,8 +39,9 @@ embedded-hal = "1.0.0-rc.1"
 thiserror = "1.0.56"
 
 [build-dependencies]
+bindgen = "0.69.2"
+cc = "1.0.83"
 embuild = "0.31.3"
-
 
 [lints.rust]
 missing_docs = "warn"
