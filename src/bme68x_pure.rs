@@ -271,7 +271,10 @@ const BME68X_HCTRL_POS: u8 = 3;
 #[repr(u8)]
 #[derive(Debug, Clone, Copy)]
 pub enum BME68xAddr {
+    /// Low Address
     LOW = 0x76,
+
+    /// High Address
     HIGH = 0x77,
 }
 
@@ -703,11 +706,6 @@ pub struct BME68xDev<I2C> {
     /// Chip ID
     chip_id: u8,
 
-    /// The interface pointer is used to enable the user to link their
-    /// interface descriptors for reference during the implementation of
-    /// the read and write interfaces to the hardware.
-    intf_ptr: u8, // TODO: Figure out what to do here!
-
     /// Variant ID.
     /// 0 = BME68X_VARIANT_GAS_LOW
     /// 1 = BME68X_VARIANT_GAS_HIGH
@@ -1052,8 +1050,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
         conf: &BME68xHeatrConf,
     ) -> Result<(), BME68xError> {
         self.set_op_mode(BME68xOpMode::SleepMode)?;
-        let mut hctrl = 0;
-        let mut run_gas = 0;
+        let hctrl;
+        let run_gas;
         let mut ctrl_gas_data = [0; 2];
         let ctrl_gas_addr = [
             BME68xRegister::CtrlGas0 as u8,
@@ -1117,55 +1115,55 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     /// Returns an error if the self test failed.
-    pub fn selftest_check(&self) -> Result<(), BME68xError> {
-        todo!("Fix This so it works with the I2c trait")
+    pub fn selftest_check(&mut self) -> Result<(), BME68xError> {
+        // TODO: Figure out how we can re-enable cloning for test?
         // let mut t_dev = self.clone();
-        // let conf = BME68xConf {
-        //     os_hum: BME68xOs::Os1x,
-        //     os_pres: BME68xOs::Os16x,
-        //     os_temp: BME68xOs::Os2x,
-        //     filter: 0,
-        //     odr: BME68xODR::from(0),
-        // };
-        // let mut heatr_conf = BME68xHeatrConf {
-        //     enable: BME68X_ENABLE,
-        //     heatr_dur: BME68X_HEATR_DUR1,
-        //     heatr_temp: BME68X_HIGH_TEMP,
-        //     heatr_dur_prof: [0; 10],
-        //     heatr_temp_prof: [0; 10],
-        //     profile_len: 0,
-        //     shared_heatr_dur: 0,
-        // };
+        let conf = BME68xConf {
+            os_hum: BME68xOs::Os1x,
+            os_pres: BME68xOs::Os16x,
+            os_temp: BME68xOs::Os2x,
+            filter: 0,
+            odr: BME68xODR::from(0),
+        };
+        let mut heatr_conf = BME68xHeatrConf {
+            enable: BME68X_ENABLE,
+            heatr_dur: BME68X_HEATR_DUR1,
+            heatr_temp: BME68X_HIGH_TEMP,
+            heatr_dur_prof: [0; 10],
+            heatr_temp_prof: [0; 10],
+            profile_len: 0,
+            shared_heatr_dur: 0,
+        };
 
-        // t_dev.set_config(&conf)?;
-        // t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
-        // // TODO: t_dev.delay_us(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
-        // let (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
-        // if !((data[0].idac != 0x00)
-        //     && (data[0].idac != 0xFF)
-        //     && ((data[0].status & BME68X_GASM_VALID_MSK) == 0))
-        // {
-        //     return Err(BME68xError::SelfTest);
-        // }
+        self.set_config(&conf)?;
+        self.set_op_mode(BME68xOpMode::ForcedMode)?;
+        // TODO: t_dev.delay_us(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
+        let (data, _) = self.get_data(BME68xOpMode::ForcedMode)?;
+        if !((data[0].idac != 0x00)
+            && (data[0].idac != 0xFF)
+            && ((data[0].status & BME68X_GASM_VALID_MSK) == 0))
+        {
+            return Err(BME68xError::SelfTest);
+        }
 
-        // heatr_conf.heatr_dur = BME68X_HEATR_DUR2;
+        heatr_conf.heatr_dur = BME68X_HEATR_DUR2;
 
-        // let mut data = [BME68xData::new(); 3];
-        // let mut i = 0;
-        // while i < BME68X_N_MEAS {
-        //     if (i % 2) == 0 {
-        //         heatr_conf.heatr_temp = BME68X_HIGH_TEMP;
-        //     } else {
-        //         heatr_conf.heatr_temp = BME68X_LOW_TEMP;
-        //     }
-        //     t_dev.set_heatr_conf(BME68xOpMode::ForcedMode, &heatr_conf)?;
-        //     t_dev.set_config(&conf)?;
-        //     t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
-        //     // TODO: t_dev.delay_us(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
-        //     (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
-        //     i += 1;
-        // }
-        // analyze_sensor_data(&data, BME68X_N_MEAS)
+        let mut data = [BME68xData::new(); 3];
+        let mut i = 0;
+        while i < BME68X_N_MEAS {
+            if (i % 2) == 0 {
+                heatr_conf.heatr_temp = BME68X_HIGH_TEMP;
+            } else {
+                heatr_conf.heatr_temp = BME68X_LOW_TEMP;
+            }
+            self.set_heatr_conf(BME68xOpMode::ForcedMode, &heatr_conf)?;
+            self.set_config(&conf)?;
+            self.set_op_mode(BME68xOpMode::ForcedMode)?;
+            // TODO: t_dev.delay_us(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
+            (data, _) = self.get_data(BME68xOpMode::ForcedMode)?;
+            i += 1;
+        }
+        analyze_sensor_data(&data, BME68X_N_MEAS)
     }
 
     /*------------------------------------------------------------
