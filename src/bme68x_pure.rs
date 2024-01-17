@@ -1,6 +1,8 @@
 //! BME68X Driver Implementation in pure rust.
 // TODO: More enumerations to replace constants
 
+use embedded_hal::i2c::I2c;
+
 // Other stuff
 const BME68X_CHIP_ID: u8 = 0x61;
 const BME68X_SOFT_RESET_CMD: u8 = 0xb6;
@@ -125,7 +127,7 @@ const BME68X_LEN_FIELD_OFFSET: u8 = 17;
 const BME68X_LEN_CONFIG: usize = 5;
 
 ///  Length of the interleaved buffer
-const BME68X_LEN_INTERLEAVE_BUFF: u8 = 20;
+const BME68X_LEN_INTERLEAVE_BUFF: usize = 20;
 
 //  Coefficient index macros
 
@@ -260,6 +262,14 @@ const BME68X_RUN_GAS_POS: u8 = 4;
 
 /// Heater control bit position
 const BME68X_HCTRL_POS: u8 = 3;
+
+/// Enumeration of the device addresses
+#[repr(u8)]
+#[derive(Debug, Clone, Copy)]
+pub enum BME68xAddr {
+    LOW = 0x76,
+    HIGH = 0x77,
+}
 
 /// BME68x error codes
 #[repr(i8)]
@@ -678,7 +688,14 @@ impl BME68xHeatrConf {
 
 /// BME68X Device Structure
 #[derive(Clone, Copy)]
-pub struct BME68xDev {
+pub struct BME68xDev<I2C> {
+    // FIXME: Instead need to support I2C or SPI
+    /// Concrete I2C Implementation
+    i2c: I2C,
+
+    /// The I2C Address
+    address: BME68xAddr,
+
     /// Chip ID
     chip_id: u8,
 
@@ -708,13 +725,13 @@ pub struct BME68xDev {
     // TODO: bme68x_write_fptr_t write;
     // TOOD:  bme68x_delay_us_fptr_t delay_us
     /// To store interface pointer error
-    intf_rslt: i8,
+    intf_rslt: BME68xError,
 
     /// Store info messages
     info_msg: BME68xError,
 }
 
-impl BME68xDev {
+impl<I2C: I2c> BME68xDev<I2C> {
     /// Initialize the sensor.
     ///
     /// Reads the Chip ID and calibrates the sensor.
@@ -743,14 +760,37 @@ impl BME68xDev {
     ///
     /// # Errors
     /// Errors if failing to write to the registers.
-    // FIXME: Use the enum for registers. Will cause issues with the setting of heater conf
     pub fn set_regs(
-        &self,
+        &mut self,
         reg_addr: &[u8],
         reg_data: &[u8],
         len: usize,
     ) -> Result<(), BME68xError> {
-        todo!();
+        // FIXME: Proper spi support
+        let mut tmp_buff = [0; BME68X_LEN_INTERLEAVE_BUFF];
+        if (len > 0) && (len <= (BME68X_LEN_INTERLEAVE_BUFF / 2)) {
+            for index in 0..len {
+                if (matches!(self.intf, BME68xIntf::SPIIntf)) {
+                    self.set_mem_page(reg_addr[index])?;
+                    tmp_buff[2 * index] = reg_addr[index] & BME68X_SPI_WR_MSK;
+                } else {
+                    tmp_buff[(2 * index)] = reg_addr[index];
+                }
+                tmp_buff[(2 * index) + 1] = reg_data[index];
+            }
+            let result = self
+                .i2c
+                .write(self.address as u8, &tmp_buff[0..((2 * len) - 1)]);
+            if let Ok(_) = result {
+                self.intf_rslt = BME68xError::Ok;
+                Ok(())
+            } else {
+                self.intf_rslt = BME68xError::ComFail;
+                Err(BME68xError::ComFail)
+            }
+        } else {
+            Err(BME68xError::InvalidLength)
+        }
     }
 
     /// Read data from the given registers
@@ -765,15 +805,31 @@ impl BME68xDev {
     /// # Errors
     /// Errors if failing to read from the registers.
     // TODO: Remove the len argument?
-    pub fn get_regs(&self, reg_addr: u8, len: usize) -> Result<&[u8], BME68xError> {
-        todo!();
+    pub fn get_regs(&mut self, mut reg_addr: u8, len: usize) -> Result<Vec<u8>, BME68xError> {
+        // FIXME: Proper SPI support
+        if matches!(self.intf, BME68xIntf::SPIIntf) {
+            self.set_mem_page(reg_addr)?;
+            reg_addr = reg_addr | BME68X_SPI_RD_MSK;
+        }
+        let mut read_buffer = vec![0; len];
+        let result = self
+            .i2c
+            .write_read(self.address as u8, &[reg_addr], &mut read_buffer);
+
+        if let Ok(_) = result {
+            self.intf_rslt = BME68xError::Ok;
+            Ok(read_buffer)
+        } else {
+            self.intf_rslt = BME68xError::ComFail;
+            Err(BME68xError::ComFail)
+        }
     }
 
     /// Soft-Reset the sensorr
     ///
     /// # Errors
     /// Returns an error if soft-resetting the sensor failed.
-    pub fn soft_reset(&self) -> Result<(), BME68xError> {
+    pub fn soft_reset(&mut self) -> Result<(), BME68xError> {
         self.get_mem_page()?;
         if matches!(self.intf, BME68xIntf::SPIIntf) {
             self.set_regs(
@@ -794,7 +850,7 @@ impl BME68xDev {
     ///
     /// # Errors
     /// Returns an error if setting the operation mode fails.
-    pub fn set_op_mode(&self, op_mode: BME68xOpMode) -> Result<(), BME68xError> {
+    pub fn set_op_mode(&mut self, op_mode: BME68xOpMode) -> Result<(), BME68xError> {
         let mut tmp_pow_mode;
         loop {
             tmp_pow_mode = self.get_regs(BME68xRegister::CtrlMeas as u8, 1)?[0];
@@ -824,7 +880,7 @@ impl BME68xDev {
     ///
     /// # Errors
     /// Returns an error if getting the operation mode fails
-    pub fn get_op_mode(&self) -> Result<BME68xOpMode, BME68xError> {
+    pub fn get_op_mode(&mut self) -> Result<BME68xOpMode, BME68xError> {
         let output = self.get_regs(BME68xRegister::CtrlMeas as u8, 1)?[0];
         Ok(BME68xOpMode::from(output & BME68X_MODE_MSK))
     }
@@ -963,7 +1019,7 @@ impl BME68xDev {
     ///
     /// # Errors
     /// Returns an error if getting the configuration failed.
-    pub fn get_config(&self) -> Result<BME68xConf, BME68xError> {
+    pub fn get_config(&mut self) -> Result<BME68xConf, BME68xError> {
         let data_array = self.get_regs(BME68xRegister::CtrlGas1 as u8, 5)?;
         Ok(BME68xConf {
             os_hum: BME68xOs::from(data_array[1] & BME68X_OSH_MSK),
@@ -987,7 +1043,7 @@ impl BME68xDev {
     /// # Errors
     /// Returns an error if seting the heater configuration failed
     pub fn set_heatr_conf(
-        &self,
+        &mut self,
         op_mode: BME68xOpMode,
         conf: &BME68xHeatrConf,
     ) -> Result<(), BME68xError> {
@@ -1037,7 +1093,7 @@ impl BME68xDev {
     ///
     /// # Errors
     /// Returns an error if reading the heater configuration failed.
-    pub fn get_heatr_conf(&self) -> Result<BME68xHeatrConf, BME68xError> {
+    pub fn get_heatr_conf(&mut self) -> Result<BME68xHeatrConf, BME68xError> {
         let mut conf = BME68xHeatrConf::new();
         let temp_reg_data = self.get_regs(BME68xRegister::ResHeat0 as u8, 10)?;
         // FIXME: Pass in profile len conf, like in the original API.
@@ -1058,53 +1114,54 @@ impl BME68xDev {
     /// # Errors
     /// Returns an error if the self test failed.
     pub fn selftest_check(&self) -> Result<(), BME68xError> {
-        let mut t_dev = self.clone();
-        let conf = BME68xConf {
-            os_hum: BME68xOs::Os1x,
-            os_pres: BME68xOs::Os16x,
-            os_temp: BME68xOs::Os2x,
-            filter: 0,
-            odr: BME68xODR::from(0),
-        };
-        let mut heatr_conf = BME68xHeatrConf {
-            enable: BME68X_ENABLE,
-            heatr_dur: BME68X_HEATR_DUR1,
-            heatr_temp: BME68X_HIGH_TEMP,
-            heatr_dur_prof: [0; 10],
-            heatr_temp_prof: [0; 10],
-            profile_len: 0,
-            shared_heatr_dur: 0,
-        };
+        todo!("Fix This so it works with the I2c trait")
+        // let mut t_dev = self.clone();
+        // let conf = BME68xConf {
+        //     os_hum: BME68xOs::Os1x,
+        //     os_pres: BME68xOs::Os16x,
+        //     os_temp: BME68xOs::Os2x,
+        //     filter: 0,
+        //     odr: BME68xODR::from(0),
+        // };
+        // let mut heatr_conf = BME68xHeatrConf {
+        //     enable: BME68X_ENABLE,
+        //     heatr_dur: BME68X_HEATR_DUR1,
+        //     heatr_temp: BME68X_HIGH_TEMP,
+        //     heatr_dur_prof: [0; 10],
+        //     heatr_temp_prof: [0; 10],
+        //     profile_len: 0,
+        //     shared_heatr_dur: 0,
+        // };
 
-        t_dev.set_config(&conf)?;
-        t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
-        // TODO: t_dev.delay_us(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
-        let (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
-        if !((data[0].idac != 0x00)
-            && (data[0].idac != 0xFF)
-            && ((data[0].status & BME68X_GASM_VALID_MSK) == 0))
-        {
-            return Err(BME68xError::SelfTest);
-        }
+        // t_dev.set_config(&conf)?;
+        // t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
+        // // TODO: t_dev.delay_us(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
+        // let (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
+        // if !((data[0].idac != 0x00)
+        //     && (data[0].idac != 0xFF)
+        //     && ((data[0].status & BME68X_GASM_VALID_MSK) == 0))
+        // {
+        //     return Err(BME68xError::SelfTest);
+        // }
 
-        heatr_conf.heatr_dur = BME68X_HEATR_DUR2;
+        // heatr_conf.heatr_dur = BME68X_HEATR_DUR2;
 
-        let mut data = [BME68xData::new(); 3];
-        let mut i = 0;
-        while i < BME68X_N_MEAS {
-            if (i % 2) == 0 {
-                heatr_conf.heatr_temp = BME68X_HIGH_TEMP;
-            } else {
-                heatr_conf.heatr_temp = BME68X_LOW_TEMP;
-            }
-            t_dev.set_heatr_conf(BME68xOpMode::ForcedMode, &heatr_conf)?;
-            t_dev.set_config(&conf)?;
-            t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
-            // TODO: t_dev.delay_us(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
-            (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
-            i += 1;
-        }
-        analyze_sensor_data(&data, BME68X_N_MEAS)
+        // let mut data = [BME68xData::new(); 3];
+        // let mut i = 0;
+        // while i < BME68X_N_MEAS {
+        //     if (i % 2) == 0 {
+        //         heatr_conf.heatr_temp = BME68X_HIGH_TEMP;
+        //     } else {
+        //         heatr_conf.heatr_temp = BME68X_LOW_TEMP;
+        //     }
+        //     t_dev.set_heatr_conf(BME68xOpMode::ForcedMode, &heatr_conf)?;
+        //     t_dev.set_config(&conf)?;
+        //     t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
+        //     // TODO: t_dev.delay_us(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
+        //     (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
+        //     i += 1;
+        // }
+        // analyze_sensor_data(&data, BME68X_N_MEAS)
     }
 
     /*------------------------------------------------------------
@@ -1459,7 +1516,11 @@ impl BME68xDev {
     }
 
     /// Set heater configuration
-    fn set_conf(&self, conf: &BME68xHeatrConf, op_mode: BME68xOpMode) -> Result<u8, BME68xError> {
+    fn set_conf(
+        &mut self,
+        conf: &BME68xHeatrConf,
+        op_mode: BME68xOpMode,
+    ) -> Result<u8, BME68xError> {
         let mut nb_conv = 0;
         let mut write_len = 0;
         let mut rh_reg_addr = [0; 10];
