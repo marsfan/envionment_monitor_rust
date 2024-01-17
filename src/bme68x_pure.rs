@@ -725,7 +725,7 @@ impl BME68xDev {
     pub fn init(&mut self) -> Result<(), BME68xError> {
         self.soft_reset().unwrap();
 
-        self.chip_id = self.get_regs(BME68xRegister::ChipId, 1)?[0];
+        self.chip_id = self.get_regs(BME68xRegister::ChipId as u8, 1)?[0];
         if self.chip_id == BME68X_CHIP_ID {
             self.read_variant_id()?;
             self.get_calib_data()
@@ -765,7 +765,7 @@ impl BME68xDev {
     /// # Errors
     /// Errors if failing to read from the registers.
     // TODO: Remove the len argument?
-    pub fn get_regs(&self, reg_addr: BME68xRegister, len: usize) -> Result<&[u8], BME68xError> {
+    pub fn get_regs(&self, reg_addr: u8, len: usize) -> Result<&[u8], BME68xError> {
         todo!();
     }
 
@@ -797,7 +797,7 @@ impl BME68xDev {
     pub fn set_op_mode(&self, op_mode: BME68xOpMode) -> Result<(), BME68xError> {
         let mut tmp_pow_mode;
         loop {
-            tmp_pow_mode = self.get_regs(BME68xRegister::CtrlMeas, 1)?[0];
+            tmp_pow_mode = self.get_regs(BME68xRegister::CtrlMeas as u8, 1)?[0];
             let pow_mode: BME68xOpMode = (tmp_pow_mode & BME68X_MODE_MSK).into();
 
             if !matches!(pow_mode, BME68xOpMode::SleepMode) {
@@ -825,7 +825,7 @@ impl BME68xDev {
     /// # Errors
     /// Returns an error if getting the operation mode fails
     pub fn get_op_mode(&self) -> Result<BME68xOpMode, BME68xError> {
-        let output = self.get_regs(BME68xRegister::CtrlMeas, 1)?[0];
+        let output = self.get_regs(BME68xRegister::CtrlMeas as u8, 1)?[0];
         Ok(BME68xOpMode::from(output & BME68X_MODE_MSK))
     }
 
@@ -876,7 +876,7 @@ impl BME68xDev {
         let mut data = [BME68xData::new(); 3];
         match op_mode {
             BME68xOpMode::ForcedMode => {
-                self.read_field_data(0, &mut data)?;
+                self.read_field_data(0, &mut data[0])?;
                 new_fields = 1;
             }
             BME68xOpMode::ParallelMode | BME68xOpMode::SequentialMode => {
@@ -921,7 +921,7 @@ impl BME68xDev {
         // Configure only in sleep mode
         self.set_op_mode(BME68xOpMode::SleepMode)?;
 
-        let curr_config = self.get_regs(BME68xRegister::CtrlGas1, BME68X_LEN_CONFIG)?;
+        let curr_config = self.get_regs(BME68xRegister::CtrlGas1 as u8, BME68X_LEN_CONFIG)?;
         for i in 0..BME68X_LEN_CONFIG {
             data_array[i] = curr_config[i];
         }
@@ -964,7 +964,7 @@ impl BME68xDev {
     /// # Errors
     /// Returns an error if getting the configuration failed.
     pub fn get_config(&self) -> Result<BME68xConf, BME68xError> {
-        let data_array = self.get_regs(BME68xRegister::CtrlGas1, 5)?;
+        let data_array = self.get_regs(BME68xRegister::CtrlGas1 as u8, 5)?;
         Ok(BME68xConf {
             os_hum: BME68xOs::from(data_array[1] & BME68X_OSH_MSK),
             filter: get_bits(data_array[4], BME68X_FILTER_MSK, BME68X_FILTER_POS),
@@ -1001,7 +1001,7 @@ impl BME68xDev {
         ];
 
         let nb_conv = self.set_conf(conf, op_mode)?;
-        let gas_regs = self.get_regs(BME68xRegister::CtrlGas0, 2)?;
+        let gas_regs = self.get_regs(BME68xRegister::CtrlGas0 as u8, 2)?;
         for i in 0..2 {
             ctrl_gas_data[i] = gas_regs[i];
         }
@@ -1039,13 +1039,13 @@ impl BME68xDev {
     /// Returns an error if reading the heater configuration failed.
     pub fn get_heatr_conf(&self) -> Result<BME68xHeatrConf, BME68xError> {
         let mut conf = BME68xHeatrConf::new();
-        let temp_reg_data = self.get_regs(BME68xRegister::ResHeat0, 10)?;
+        let temp_reg_data = self.get_regs(BME68xRegister::ResHeat0 as u8, 10)?;
         // FIXME: Pass in profile len conf, like in the original API.
         for i in 0..10 {
             conf.heatr_temp_prof[i] = temp_reg_data[i] as u16;
         }
 
-        let time_reg_data = self.get_regs(BME68xRegister::GasWait0, 10)?;
+        let time_reg_data = self.get_regs(BME68xRegister::GasWait0 as u8, 10)?;
         // FIXME: Pass in profile len conf, like in the original API.
         for i in 0..10 {
             conf.heatr_dur_prof[i] = time_reg_data[i] as u16;
@@ -1119,19 +1119,19 @@ impl BME68xDev {
         let mut coeff_array = [0; BME68X_LEN_COEFF_ALL];
 
         // Read first portion of the coefficent array.
-        let result = self.get_regs(BME68xRegister::Coeff1, BME68X_LEN_COEFF1)?;
+        let result = self.get_regs(BME68xRegister::Coeff1 as u8, BME68X_LEN_COEFF1)?;
         for i in 0..BME68X_LEN_COEFF1 {
             coeff_array[i] = result[i];
         }
 
         // Read second chunk of coefficents.
-        let result = self.get_regs(BME68xRegister::Coeff2, BME68X_LEN_COEFF2)?;
+        let result = self.get_regs(BME68xRegister::Coeff2 as u8, BME68X_LEN_COEFF2)?;
         for i in 0..BME68X_LEN_COEFF2 {
             coeff_array[i + BME68X_LEN_COEFF1] = result[i];
         }
 
         // Read the third chunk of coefficents
-        let result = self.get_regs(BME68xRegister::Coeff3, BME68X_LEN_COEFF3)?;
+        let result = self.get_regs(BME68xRegister::Coeff3 as u8, BME68X_LEN_COEFF3)?;
         for i in 0..BME68X_LEN_COEFF3 {
             coeff_array[i + BME68X_LEN_COEFF1 + BME68X_LEN_COEFF2] = result[i];
         }
@@ -1213,7 +1213,7 @@ impl BME68xDev {
     /// # Errors
     /// Errors if reading the register failed
     fn read_variant_id(&mut self) -> Result<(), BME68xError> {
-        let data = self.get_regs(BME68xRegister::VariantId, 1)?;
+        let data = self.get_regs(BME68xRegister::VariantId as u8, 1)?;
         self.variant_id = u32::from(data[0]);
         Ok(())
     }
@@ -1340,20 +1340,67 @@ impl BME68xDev {
     }
 
     /// Read a single data from teh senssor
-    fn read_field_data(&self, index: u8, data: &mut [BME68xData]) -> Result<(), BME68xError> {
-        todo!()
+    fn read_field_data(&mut self, index: u8, data: &mut BME68xData) -> Result<(), BME68xError> {
+        let mut tries = 5;
+        while tries > 0 {
+            let reg_addr = (BME68xRegister::Field0 as u8) + (index * BME68X_LEN_FIELD_OFFSET);
+            let regs = self.get_regs(reg_addr, BME68X_LEN_FIELD)?;
+            let mut buff = [0; BME68X_LEN_FIELD];
+            for i in 0..BME68X_LEN_FIELD {
+                buff[i] = regs[i];
+            }
+            let adc_pres =
+                (u32::from(buff[2]) * 4096) | (u32::from(buff[3]) * 16) | (u32::from(buff[4]) / 16);
+            let adc_temp =
+                (u32::from(buff[5]) * 4096) | (u32::from(buff[6]) * 16) | (u32::from(buff[7]) / 16);
+            let adc_hum = (u32::from(buff[8]) * 256) | u32::from(buff[9]);
+            let adc_gas_res_low = u32::from(buff[13]) * 4 | ((u32::from(buff[14])) / 64);
+            let adc_gas_res_high = u32::from(buff[15]) * 4 | ((u32::from(buff[16])) / 64);
+            let gas_range_l = buff[14] & BME68X_GAS_RANGE_MSK;
+            let gas_range_h = buff[16] & BME68X_GAS_RANGE_MSK;
+            if (self.variant_id == BME68X_VARIANT_GAS_HIGH) {
+                data.status |= buff[16] & BME68X_GASM_VALID_MSK;
+                data.status |= buff[16] & BME68X_HEAT_STAB_MSK;
+            } else {
+                data.status |= buff[14] & BME68X_GASM_VALID_MSK;
+                data.status |= buff[14] & BME68X_HEAT_STAB_MSK;
+            }
+
+            if (data.status & BME68X_NEW_DATA_MSK) != 0 {
+                data.res_heat =
+                    self.get_regs((BME68xRegister::ResHeat0 as u8) + data.gas_index, 1)?[0];
+                data.idac =
+                    self.get_regs((BME68xRegister::IdacHeat0 as u8) + data.gas_index, 1)?[0];
+                data.gas_wait =
+                    self.get_regs((BME68xRegister::GasWait0 as u8) + data.gas_index, 1)?[0];
+                data.temperature = self.calc_temperature(adc_temp);
+                data.pressure = self.calc_pressure(adc_pres);
+                data.humidity = self.calc_humidity(adc_hum);
+                if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+                    data.gas_resistance =
+                        calc_gas_resistance_high(adc_gas_res_high as u16, gas_range_h);
+                } else {
+                    data.gas_resistance =
+                        self.calc_gas_resistance_low(adc_gas_res_low as u16, gas_range_l);
+                }
+                break;
+                // TODO:  dev->delay_us(BME68X_PERIOD_POLL, dev->intf_ptr)
+                tries -= 1;
+            }
+        }
+        Ok(())
     }
 
     /// Read all data fields of the sensor
     fn read_all_field_data(&mut self, data: &mut [BME68xData; 3]) -> Result<(), BME68xError> {
         let mut buff = [0; BME68X_LEN_FIELD * 3];
         let mut set_val = [0; 30];
-        let regs = self.get_regs(BME68xRegister::Field0, BME68X_LEN_FIELD * 3)?;
+        let regs = self.get_regs(BME68xRegister::Field0 as u8, BME68X_LEN_FIELD * 3)?;
         for i in 0..(BME68X_LEN_FIELD * 3) {
             buff[i] = regs[i];
         }
 
-        let regs = self.get_regs(BME68xRegister::IdacHeat0, 30)?;
+        let regs = self.get_regs(BME68xRegister::IdacHeat0 as u8, 30)?;
         for i in 0..30 {
             set_val[i] = regs[i];
         }
