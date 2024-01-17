@@ -774,11 +774,11 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let mut tmp_buff = [0; BME68X_LEN_INTERLEAVE_BUFF];
         if (len > 0) && (len <= (BME68X_LEN_INTERLEAVE_BUFF / 2)) {
             for index in 0..len {
-                if (matches!(self.intf, BME68xIntf::SPIIntf)) {
+                if matches!(self.intf, BME68xIntf::SPIIntf) {
                     self.set_mem_page(reg_addr[index])?;
                     tmp_buff[2 * index] = reg_addr[index] & BME68X_SPI_WR_MSK;
                 } else {
-                    tmp_buff[(2 * index)] = reg_addr[index];
+                    tmp_buff[2 * index] = reg_addr[index];
                 }
                 tmp_buff[(2 * index) + 1] = reg_data[index];
             }
@@ -1419,7 +1419,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             let adc_gas_res_high = u32::from(buff[15]) * 4 | ((u32::from(buff[16])) / 64);
             let gas_range_l = buff[14] & BME68X_GAS_RANGE_MSK;
             let gas_range_h = buff[16] & BME68X_GAS_RANGE_MSK;
-            if (self.variant_id == BME68X_VARIANT_GAS_HIGH) {
+            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
                 data.status |= buff[16] & BME68X_GASM_VALID_MSK;
                 data.status |= buff[16] & BME68X_HEAT_STAB_MSK;
             } else {
@@ -1484,7 +1484,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 u32::from(buff[off + 15]) * 4 | ((u32::from(buff[off + 16])) / 64);
             let gas_range_l = buff[off + 14] & BME68X_GAS_RANGE_MSK;
             let gas_range_h = buff[off + 16] & BME68X_GAS_RANGE_MSK;
-            if (self.variant_id == BME68X_VARIANT_GAS_HIGH) {
+            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
                 data[i].status |= buff[off + 16] & BME68X_GASM_VALID_MSK;
                 data[i].status |= buff[off + 16] & BME68X_HEAT_STAB_MSK;
             } else {
