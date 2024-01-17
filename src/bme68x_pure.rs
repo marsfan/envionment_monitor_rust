@@ -727,7 +727,8 @@ impl BME68xDev {
 
         self.chip_id = self.get_regs(BME68xRegister::ChipId, 1)?[0];
         if self.chip_id == BME68X_CHIP_ID {
-            self.read_variant_id()
+            self.read_variant_id()?;
+            self.get_calib_data()
         } else {
             Err(BME68xError::DevNotFound)
         }
