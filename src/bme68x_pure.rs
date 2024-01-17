@@ -30,6 +30,10 @@ const BME68X_ENABLE_GAS_MEAS_L: u8 = 0x01;
 const BME68X_VARIANT_GAS_LOW: u32 = 0x00;
 const BME68X_VARIANT_GAS_HIGH: u32 = 0x01;
 
+// TODO: Make these an enum
+const BME68X_MEM_PAGE0: u8 = 0x10;
+const BME68X_MEM_PAGE1: u8 = 0x00;
+
 // Min/max values allowed.
 const BME68X_MIN_TEMPERATURE: f32 = 0.0;
 const BME68X_MAX_TEMPERATURE: f32 = 60.0;
@@ -1506,13 +1510,45 @@ impl<I2C: I2c> BME68xDev<I2C> {
     }
 
     /// Switch between SPI memory pages
-    fn set_mem_page(&self, reg_addr: u8) -> Result<(), BME68xError> {
-        todo!()
+    fn set_mem_page(&mut self, reg_addr: u8) -> Result<(), BME68xError> {
+        let mem_page = if reg_addr > 0x7f {
+            BME68X_MEM_PAGE1
+        } else {
+            BME68X_MEM_PAGE0
+        };
+
+        if mem_page != self.mem_page {
+            self.mem_page = mem_page;
+            let write_buffer = [BME68xRegister::MemPage as u8 | BME68X_SPI_RD_MSK];
+            let mut read_buffer = [0];
+            let result = self
+                .i2c
+                .write_read(self.address as u8, &write_buffer, &mut read_buffer);
+            if let Ok(_) = result {
+                let reg = read_buffer[0] & (!BME68X_MEM_PAGE_MSK);
+                let reg = reg | (self.mem_page & BME68X_MEM_PAGE_MSK);
+
+                let write_buffer = [BME68xRegister::MemPage as u8 & BME68X_SPI_WR_MSK, reg];
+                let result = self.i2c.write(self.address as u8, &write_buffer);
+                if let Ok(_) = result {
+                    self.intf_rslt = BME68xError::Ok;
+                    Ok(())
+                } else {
+                    self.intf_rslt = BME68xError::ComFail;
+                    Err(BME68xError::ComFail)
+                }
+            } else {
+                self.intf_rslt = BME68xError::ComFail;
+                Err(BME68xError::ComFail)
+            }
+        } else {
+            Ok(())
+        }
     }
 
     /// Get The current SPI memory page
     fn get_mem_page(&mut self) -> Result<(), BME68xError> {
-        let mut read_buffer = [0; 1];
+        let mut read_buffer = [0];
         let result = self.i2c.write_read(
             self.address as u8,
             &[BME68xRegister::MemPage as u8 | BME68X_SPI_RD_MSK],
