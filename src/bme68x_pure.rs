@@ -1449,7 +1449,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 }
                 break;
             }
-            (self.delay_us)(BME68X_PERIOD_POLL)
+            (self.delay_us)(BME68X_PERIOD_POLL);
             tries -= 1;
         }
         Ok(())
