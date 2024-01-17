@@ -7,6 +7,8 @@ use embedded_hal::i2c::I2c;
 const BME68X_CHIP_ID: u8 = 0x61;
 const BME68X_SOFT_RESET_CMD: u8 = 0xb6;
 const BME68X_ENABLE: u8 = 0x01;
+const BME68X_PERIOD_RESET: u32 = 10000;
+const BME68X_PERIOD_POLL: u32 = 10000;
 
 // For self test
 const BME68X_HEATR_DUR1: u16 = 1000;
@@ -694,7 +696,6 @@ impl BME68xHeatrConf {
 }
 
 /// BME68X Device Structure
-#[derive(Clone, Copy)]
 pub struct BME68xDev<I2C> {
     // FIXME: Instead need to support I2C or SPI
     /// Concrete I2C Implementation
@@ -723,14 +724,14 @@ pub struct BME68xDev<I2C> {
     /// Sensor Calibration Data
     calib: BME68xCalibData,
 
-    //TODO: bme68x_read_fptr_t read;
-    // TODO: bme68x_write_fptr_t write;
-    // TOOD:  bme68x_delay_us_fptr_t delay_us
     /// To store interface pointer error
     intf_rslt: BME68xError,
 
     /// Store info messages
     info_msg: BME68xError,
+
+    /// Function to delay by a specific numebr of microseconds
+    delay_us: Box<dyn Fn(u32)>,
 }
 
 impl<I2C: I2c> BME68xDev<I2C> {
@@ -839,7 +840,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 &[BME68X_SOFT_RESET_CMD],
                 1,
             )?;
-            todo!("dev->delay_us(BME68X_PERIOD_RESET, dev->intf_ptr);");
+            (self.delay_us)(BME68X_PERIOD_RESET);
             self.get_mem_page()?;
         }
         Ok(())
@@ -862,7 +863,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 // In rust ! is bitwise not
                 tmp_pow_mode &= !BME68X_MODE_MSK; /* Set to sleep */
                 self.set_regs(&[BME68xRegister::CtrlMeas as u8], &[tmp_pow_mode], 1)?;
-                todo!("dev->delay_us(BME68X_PERIOD_POLL, dev->intf_ptr)");
+                (self.delay_us)(BME68X_PERIOD_POLL);
             } else {
                 break;
             }
@@ -1137,7 +1138,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         self.set_config(&conf)?;
         self.set_op_mode(BME68xOpMode::ForcedMode)?;
-        // TODO: t_dev.delay_us(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
+
+        // Wait for measurement to complete
+        (self.delay_us)(BME68X_HEATR_DUR1_DELAY);
         let (data, _) = self.get_data(BME68xOpMode::ForcedMode)?;
         if !((data[0].idac != 0x00)
             && (data[0].idac != 0xFF)
@@ -1159,7 +1162,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
             self.set_heatr_conf(BME68xOpMode::ForcedMode, &heatr_conf)?;
             self.set_config(&conf)?;
             self.set_op_mode(BME68xOpMode::ForcedMode)?;
-            // TODO: t_dev.delay_us(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
+
+            // Wait for measurement to complete
+            (self.delay_us)(BME68X_HEATR_DUR2_DELAY);
             (data, _) = self.get_data(BME68xOpMode::ForcedMode)?;
             i += 1;
         }
@@ -1443,8 +1448,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
                         self.calc_gas_resistance_low(adc_gas_res_low as u16, gas_range_l);
                 }
                 break;
-                // TODO:  dev->delay_us(BME68X_PERIOD_POLL, dev->intf_ptr)
             }
+            (self.delay_us)(BME68X_PERIOD_POLL)
             tries -= 1;
         }
         Ok(())
