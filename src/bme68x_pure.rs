@@ -4,6 +4,29 @@
 // Other stuff
 const BME68X_CHIP_ID: u8 = 0x61;
 const BME68X_SOFT_RESET_CMD: u8 = 0xb6;
+const BME68X_ENABLE: u8 = 0x01;
+
+// For self test
+const BME68X_HEATR_DUR1: u16 = 1000;
+const BME68X_HEATR_DUR2: u16 = 2000;
+const BME68X_LOW_TEMP: u16 = 150;
+const BME68X_HIGH_TEMP: u16 = 350;
+const BME68X_N_MEAS: usize = 6;
+const BME68X_HEATR_DUR1_DELAY: u32 = 1000000;
+const BME68X_HEATR_DUR2_DELAY: u32 = 2000000;
+
+// TODO: Make these an enum
+const BME68X_DISABLE_HEATER: u8 = 0x01;
+const BME68X_ENABLE_HEATER: u8 = 0x00;
+
+// TODO: Make these an enum
+const BME68X_DISABLE_GAS_MEAS: u8 = 0x00;
+const BME68X_ENABLE_GAS_MEAS_H: u8 = 0x02;
+const BME68X_ENABLE_GAS_MEAS_L: u8 = 0x01;
+
+// TODO: Make these an enum
+const BME68X_VARIANT_GAS_LOW: u32 = 0x00;
+const BME68X_VARIANT_GAS_HIGH: u32 = 0x01;
 
 // Min/max values allowed.
 const BME68X_MIN_TEMPERATURE: f32 = 0.0;
@@ -862,7 +885,7 @@ impl BME68xDev {
                         new_fields += 1;
                         for i in 0..2 {
                             for j in i + 1..3 {
-                                sort_sensor_data(i, j, &data);
+                                sort_sensor_data(i, j, &mut data);
                             }
                         }
                     }
@@ -899,16 +922,31 @@ impl BME68xDev {
             data_array[i] = curr_config[i];
         }
         self.info_msg = BME68xError::Ok;
-        data_array[4] = set_bits(data_array[4], BME68X_FILTER_MSK, conf.filter as u8);
-        data_array[3] = set_bits(data_array[3], BME68X_OST_MSK, conf.os_temp as u8);
-        data_array[3] = set_bits(data_array[3], BME68X_OSP_MSK, conf.os_pres as u8);
-        data_array[1] = (data_array[1] & !(BME68X_OSH_MSK)) | (conf.os_hum as u8 & BME68X_OSH_MSK);
+        data_array[4] = set_bits(
+            data_array[4],
+            BME68X_FILTER_MSK,
+            BME68X_FILTER_POS,
+            conf.filter as u8,
+        );
+        data_array[3] = set_bits(
+            data_array[3],
+            BME68X_OST_MSK,
+            BME68X_OST_POS,
+            conf.os_temp as u8,
+        );
+        data_array[3] = set_bits(
+            data_array[3],
+            BME68X_OSP_MSK,
+            BME68X_OSP_POS,
+            conf.os_pres as u8,
+        );
+        data_array[1] = set_bits_pos_0(data_array[1], BME68X_OSH_MSK, conf.os_hum as u8);
         if !matches!(conf.odr, BME68xODR::ODRNone) {
             odr20 = conf.odr as u8;
             odr3 = 0;
         }
-        data_array[4] = set_bits(data_array[4], BME68X_ODR20_MSK, odr20);
-        data_array[0] = set_bits(data_array[0], BME68X_ODR3_MSK, odr3);
+        data_array[4] = set_bits(data_array[4], BME68X_ODR20_MSK, BME68X_ODR20_POS, odr20);
+        data_array[0] = set_bits(data_array[0], BME68X_ODR3_MSK, BME68X_ODR3_POS, odr3);
 
         self.set_regs(&reg_array, &data_array, BME68X_LEN_CONFIG)?;
         self.set_op_mode(current_op_mode)
@@ -949,7 +987,42 @@ impl BME68xDev {
         op_mode: BME68xOpMode,
         conf: &BME68xHeatrConf,
     ) -> Result<(), BME68xError> {
-        todo!()
+        self.set_op_mode(BME68xOpMode::SleepMode)?;
+        let mut hctrl = 0;
+        let mut run_gas = 0;
+        let mut ctrl_gas_data = [0; 2];
+        let ctrl_gas_addr = [
+            BME68xRegister::CtrlGas0 as u8,
+            BME68xRegister::CtrlGas1 as u8,
+        ];
+
+        let nb_conv = self.set_conf(conf, op_mode)?;
+        let gas_regs = self.get_regs(BME68xRegister::CtrlGas0, 2)?;
+        for i in 0..2 {
+            ctrl_gas_data[i] = gas_regs[i];
+        }
+        if conf.enable == BME68X_ENABLE {
+            hctrl = BME68X_ENABLE_HEATER;
+            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+                run_gas = BME68X_ENABLE_GAS_MEAS_H;
+            } else {
+                run_gas = BME68X_ENABLE_GAS_MEAS_L;
+            }
+        } else {
+            hctrl = BME68X_DISABLE_HEATER;
+            run_gas = BME68X_DISABLE_GAS_MEAS;
+        }
+
+        ctrl_gas_data[0] = set_bits(ctrl_gas_data[0], BME68X_HCTRL_MSK, BME68X_HCTRL_POS, hctrl);
+        ctrl_gas_data[1] = set_bits_pos_0(ctrl_gas_data[1], BME68X_NBCONV_MSK, nb_conv);
+        ctrl_gas_data[1] = set_bits(
+            ctrl_gas_data[1],
+            BME68X_RUN_GAS_MSK,
+            BME68X_RUN_GAS_POS,
+            run_gas,
+        );
+
+        self.set_regs(&ctrl_gas_addr, &ctrl_gas_data, 2)
     }
 
     /// Get the heater configuration of the sensor
@@ -981,7 +1054,53 @@ impl BME68xDev {
     /// # Errors
     /// Returns an error if the self test failed.
     pub fn selftest_check(&self) -> Result<(), BME68xError> {
-        todo!()
+        let mut t_dev = self.clone();
+        let conf = BME68xConf {
+            os_hum: BME68xOs::Os1x,
+            os_pres: BME68xOs::Os16x,
+            os_temp: BME68xOs::Os2x,
+            filter: 0,
+            odr: BME68xODR::from(0),
+        };
+        let mut heatr_conf = BME68xHeatrConf {
+            enable: BME68X_ENABLE,
+            heatr_dur: BME68X_HEATR_DUR1,
+            heatr_temp: BME68X_HIGH_TEMP,
+            heatr_dur_prof: [0; 10],
+            heatr_temp_prof: [0; 10],
+            profile_len: 0,
+            shared_heatr_dur: 0,
+        };
+
+        t_dev.set_config(&conf)?;
+        t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
+        // TODO: t_dev.delay_us(BME68X_HEATR_DUR1_DELAY, t_dev.intf_ptr);
+        let (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
+        if !((data[0].idac != 0x00)
+            && (data[0].idac != 0xFF)
+            && ((data[0].status & BME68X_GASM_VALID_MSK) == 0))
+        {
+            return Err(BME68xError::SelfTest);
+        }
+
+        heatr_conf.heatr_dur = BME68X_HEATR_DUR2;
+
+        let mut data = [BME68xData::new(); 3];
+        let mut i = 0;
+        while (i < BME68X_N_MEAS) {
+            if (i % 2) == 0 {
+                heatr_conf.heatr_temp = BME68X_HIGH_TEMP;
+            } else {
+                heatr_conf.heatr_temp = BME68X_LOW_TEMP;
+            }
+            t_dev.set_heatr_conf(BME68xOpMode::ForcedMode, &heatr_conf)?;
+            t_dev.set_config(&conf)?;
+            t_dev.set_op_mode(BME68xOpMode::ForcedMode)?;
+            // TODO: t_dev.delay_us(BME68X_HEATR_DUR2_DELAY, t_dev.intf_ptr);
+            (data, _) = t_dev.get_data(BME68xOpMode::ForcedMode)?;
+            i += 1;
+        }
+        analyze_sensor_data(&data, BME68X_N_MEAS)
     }
 
     /*------------------------------------------------------------
@@ -1251,12 +1370,7 @@ impl BME68xDev {
     }
 
     /// Set heater configuration
-    fn set_conf(
-        &self,
-        conf: BME68xHeatrConf,
-        op_mode: BME68xOpMode,
-        nb_conv: u8,
-    ) -> Result<u8, BME68xError> {
+    fn set_conf(&self, conf: &BME68xHeatrConf, op_mode: BME68xOpMode) -> Result<u8, BME68xError> {
         let mut nb_conv = 0;
         let mut write_len = 0;
         let mut rh_reg_addr = [0; 10];
@@ -1309,49 +1423,24 @@ impl BME68xDev {
 
         Ok(nb_conv)
     }
-
-    /// Analyze the sensor data
-    ///
-    /// # Arguments
-    /// * `data`: Array of measurement data
-    /// * `n_meas`: Number of measurements
-    ///
-    /// # Errors
-    /// Returns an error if analysis fails
-    // TODO: move out of struct?
-    fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xError> {
-        if (data[0].temperature < BME68X_MIN_TEMPERATURE)
-            || (data[0].temperature > BME68X_MAX_TEMPERATURE)
-        {
-            return Err(BME68xError::SelfTest);
-        }
-
-        if (data[0].pressure < BME68X_MIN_PRESSURE) || (data[0].pressure > BME68X_MAX_PRESSURE) {
-            return Err(BME68xError::SelfTest);
-        }
-
-        if (data[0].humidity < BME68X_MIN_HUMIDITY) || (data[0].humidity > BME68X_MAX_HUMIDITY) {
-            return Err(BME68xError::SelfTest);
-        }
-        for i in 0..n_meas {
-            if (data[i].status & BME68X_GASM_VALID_MSK) == 0 {
-                return Err(BME68xError::SelfTest);
-            }
-        }
-        if n_meas >= 6 {
-            let cent_res = ((5.0 * (data[3].gas_resistance + data[5].gas_resistance))
-                / (2.0 * data[4].gas_resistance)) as u32;
-            if cent_res < 6 {
-                return Err(BME68xError::SelfTest);
-            }
-        }
-        Ok(())
-    }
 }
 
 /// Caclulate register value for shared heater duration
-fn calc_heatr_dur_shared(dur: u16) -> u8 {
-    todo!()
+fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
+    let mut factor = 0;
+    let heatdurval;
+    if dur >= 0x783 {
+        heatdurval = 0xff; // Max Duration
+    } else {
+        dur = ((u32::from(dur) * 1000) / 477) as u16;
+        while dur > 0x3F {
+            dur = dur >> 2;
+            factor += 1;
+        }
+        heatdurval = (dur + (factor * 64)) as u8;
+    }
+
+    heatdurval
 }
 
 // TODO: Document properly
@@ -1368,10 +1457,6 @@ fn calc_gas_wait(mut dur: u16) -> u8 {
     }
 }
 
-fn boundary_check(value: u8, max: u8) -> Result<(), BME68xError> {
-    todo!()
-}
-
 /// Swap the contents of two fields.
 ///
 /// # Arguments
@@ -1385,8 +1470,19 @@ fn swap_fields(index1: usize, index2: usize, field: &mut [BME68xData]) {
 }
 
 /// Sort the sensor data
-fn sort_sensor_data(low_index: u8, high_index: u8, field: &[BME68xData]) {
-    todo!()
+fn sort_sensor_data(low_index: usize, high_index: usize, field: &mut [BME68xData]) {
+    let meas_index1 = i16::from(field[low_index].meas_index);
+    let meas_index2 = i16::from(field[high_index].meas_index);
+    if ((field[low_index].status & BME68X_NEW_DATA_MSK) != 0)
+        && ((field[high_index].status & BME68X_NEW_DATA_MSK) != 0)
+    {
+        let diff = meas_index2 - meas_index1;
+        if ((diff > -3) && (diff < 0)) || (diff > 2) {
+            swap_fields(low_index, high_index, field);
+        }
+    } else if (field[high_index].status & BME68X_NEW_DATA_MSK) != 0 {
+        swap_fields(low_index, high_index, field);
+    }
 }
 
 /// Concatenate two u8 into a u16
@@ -1401,12 +1497,53 @@ fn concat_bytes(msb: u8, lsb: u8) -> u16 {
 
 /// Set bits for a register
 // FIXME: Convert this to a macro
-fn set_bits(reg_data: u8, bitmask: u8, data: u8) -> u8 {
-    (reg_data & !(bitmask)) | (data & bitmask)
+fn set_bits(reg_data: u8, bitmask: u8, bitpos: u8, data: u8) -> u8 {
+    ((reg_data & !(bitmask)) | ((data << bitpos) & bitmask))
+}
+
+fn set_bits_pos_0(reg_data: u8, bitmask: u8, data: u8) -> u8 {
+    ((reg_data & !(bitmask)) | (data & bitmask))
 }
 
 /// Get bits starting from positon 0
 // FIXME: Convert to macro
 fn get_bits(reg_data: u8, bitmask: u8, bitpos: u8) -> u8 {
     (reg_data & bitmask) >> bitpos
+}
+
+/// Analyze the sensor data
+///
+/// # Arguments
+/// * `data`: Array of measurement data
+/// * `n_meas`: Number of measurements
+///
+/// # Errors
+/// Returns an error if analysis fails
+fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xError> {
+    if (data[0].temperature < BME68X_MIN_TEMPERATURE)
+        || (data[0].temperature > BME68X_MAX_TEMPERATURE)
+    {
+        return Err(BME68xError::SelfTest);
+    }
+
+    if (data[0].pressure < BME68X_MIN_PRESSURE) || (data[0].pressure > BME68X_MAX_PRESSURE) {
+        return Err(BME68xError::SelfTest);
+    }
+
+    if (data[0].humidity < BME68X_MIN_HUMIDITY) || (data[0].humidity > BME68X_MAX_HUMIDITY) {
+        return Err(BME68xError::SelfTest);
+    }
+    for i in 0..n_meas {
+        if (data[i].status & BME68X_GASM_VALID_MSK) == 0 {
+            return Err(BME68xError::SelfTest);
+        }
+    }
+    if n_meas >= 6 {
+        let cent_res = ((5.0 * (data[3].gas_resistance + data[5].gas_resistance))
+            / (2.0 * data[4].gas_resistance)) as u32;
+        if cent_res < 6 {
+            return Err(BME68xError::SelfTest);
+        }
+    }
+    Ok(())
 }
