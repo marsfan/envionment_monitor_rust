@@ -1511,8 +1511,19 @@ impl<I2C: I2c> BME68xDev<I2C> {
     }
 
     /// Get The current SPI memory page
-    fn get_mem_page(&self) -> Result<(), BME68xError> {
-        todo!()
+    fn get_mem_page(&mut self) -> Result<(), BME68xError> {
+        let mut read_buffer = [0; 1];
+        let result = self.i2c.write_read(
+            self.address as u8,
+            &[BME68xRegister::MemPage as u8 | BME68X_SPI_RD_MSK],
+            &mut read_buffer,
+        );
+        if let Ok(_) = result {
+            self.mem_page = read_buffer[0] & BME68X_MEM_PAGE_MSK;
+            Ok(())
+        } else {
+            Err(BME68xError::ComFail)
+        }
     }
 
     /// Set heater configuration
