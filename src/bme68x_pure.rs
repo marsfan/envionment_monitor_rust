@@ -1446,8 +1446,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 }
                 break;
                 // TODO:  dev->delay_us(BME68X_PERIOD_POLL, dev->intf_ptr)
-                tries -= 1;
             }
+            tries -= 1;
         }
         Ok(())
     }
