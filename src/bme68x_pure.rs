@@ -775,7 +775,7 @@ impl BME68xDev {
     /// Returns an error if soft-resetting the sensor failed.
     pub fn soft_reset(&self) -> Result<(), BME68xError> {
         self.get_mem_page()?;
-        if (matches!(self.intf, BME68xIntf::SPIIntf)) {
+        if matches!(self.intf, BME68xIntf::SPIIntf) {
             self.set_regs(
                 &[BME68xRegister::SoftReset as u8],
                 &[BME68X_SOFT_RESET_CMD],
@@ -1088,7 +1088,7 @@ impl BME68xDev {
 
         let mut data = [BME68xData::new(); 3];
         let mut i = 0;
-        while (i < BME68X_N_MEAS) {
+        while i < BME68X_N_MEAS {
             if (i % 2) == 0 {
                 heatr_conf.heatr_temp = BME68X_HIGH_TEMP;
             } else {
@@ -1174,13 +1174,13 @@ impl BME68xDev {
             coeff_array[BME68X_IDX_P9_MSB],
             coeff_array[BME68X_IDX_P9_LSB],
         )) as i16;
-        self.calib.par_p10 = (coeff_array[BME68X_IDX_P10]);
+        self.calib.par_p10 = coeff_array[BME68X_IDX_P10];
 
         /* Humidity related coefficients */
-        self.calib.par_h1 = (((coeff_array[BME68X_IDX_H1_MSB] as u16) << 4)
-            | ((coeff_array[BME68X_IDX_H1_LSB] as u16) & BME68X_BIT_H1_DATA_MSK));
-        self.calib.par_h2 = (((coeff_array[BME68X_IDX_H2_MSB] as u16) << 4)
-            | (((coeff_array[BME68X_IDX_H2_LSB]) as u16) >> 4));
+        self.calib.par_h1 = ((coeff_array[BME68X_IDX_H1_MSB] as u16) << 4)
+            | ((coeff_array[BME68X_IDX_H1_LSB] as u16) & BME68X_BIT_H1_DATA_MSK);
+        self.calib.par_h2 = ((coeff_array[BME68X_IDX_H2_MSB] as u16) << 4)
+            | (((coeff_array[BME68X_IDX_H2_LSB]) as u16) >> 4);
         self.calib.par_h3 = coeff_array[BME68X_IDX_H3] as i8;
         self.calib.par_h4 = coeff_array[BME68X_IDX_H4] as i8;
         self.calib.par_h5 = coeff_array[BME68X_IDX_H5] as i8;
@@ -1197,7 +1197,7 @@ impl BME68xDev {
 
         /* Other coefficients */
         self.calib.res_heat_range =
-            ((coeff_array[BME68X_IDX_RES_HEAT_RANGE] & BME68X_RHRANGE_MSK) / 16);
+            (coeff_array[BME68X_IDX_RES_HEAT_RANGE] & BME68X_RHRANGE_MSK) / 16;
         self.calib.res_heat_val = coeff_array[BME68X_IDX_RES_HEAT_VAL] as i8;
         self.calib.range_sw_err =
             ((coeff_array[BME68X_IDX_RANGE_SW_ERR] & BME68X_RSERROR_MSK) as i8) / 16;
@@ -1499,11 +1499,11 @@ fn concat_bytes(msb: u8, lsb: u8) -> u16 {
 /// Set bits for a register
 // FIXME: Convert this to a macro
 fn set_bits(reg_data: u8, bitmask: u8, bitpos: u8, data: u8) -> u8 {
-    ((reg_data & !(bitmask)) | ((data << bitpos) & bitmask))
+    (reg_data & !(bitmask)) | ((data << bitpos) & bitmask)
 }
 
 fn set_bits_pos_0(reg_data: u8, bitmask: u8, data: u8) -> u8 {
-    ((reg_data & !(bitmask)) | (data & bitmask))
+    (reg_data & !(bitmask)) | (data & bitmask)
 }
 
 /// Get bits starting from positon 0
