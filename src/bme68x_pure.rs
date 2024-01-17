@@ -116,7 +116,7 @@ const BME68X_LEN_COEFF2: usize = 14;
 const BME68X_LEN_COEFF3: usize = 5;
 
 ///  Length of the field
-const BME68X_LEN_FIELD: u8 = 17;
+const BME68X_LEN_FIELD: usize = 17;
 
 ///  Length between two fields
 const BME68X_LEN_FIELD_OFFSET: u8 = 17;
@@ -868,7 +868,10 @@ impl BME68xDev {
     ///
     /// # Errors
     // TODO: Remove the number of elements?
-    pub fn get_data(&self, op_mode: BME68xOpMode) -> Result<([BME68xData; 3], u8), BME68xError> {
+    pub fn get_data(
+        &mut self,
+        op_mode: BME68xOpMode,
+    ) -> Result<([BME68xData; 3], u8), BME68xError> {
         let mut new_fields = 0;
         let mut data = [BME68xData::new(); 3];
         match op_mode {
@@ -1296,20 +1299,6 @@ impl BME68xDev {
         }
     }
 
-    /// Calculate gas resistance high value as a float
-    ///
-    /// # Arguments:
-    /// * `gas_res_adc`: Raw ADC gas resistance value
-    /// * `gas_range`: The gas range to use for the calculation
-    // TODO: Move outside struct?
-    fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
-        let var1: u32 = 262144 >> gas_range;
-        let var2: i32 = (gas_res_adc as i32) - 512;
-        let var2 = var2 * 3;
-        let var2 = 4096 + var2;
-        1000000.0 * var1 as f32 / var2 as f32
-    }
-
     /// Calculate gas resistance low value as a float
     ///
     /// # Arguments:
@@ -1356,7 +1345,59 @@ impl BME68xDev {
     }
 
     /// Read all data fields of the sensor
-    fn read_all_field_data(&self, data: &mut [BME68xData; 3]) -> Result<(), BME68xError> {
+    fn read_all_field_data(&mut self, data: &mut [BME68xData; 3]) -> Result<(), BME68xError> {
+        let mut buff = [0; BME68X_LEN_FIELD * 3];
+        let mut set_val = [0; 30];
+        let regs = self.get_regs(BME68xRegister::Field0, BME68X_LEN_FIELD * 3)?;
+        for i in 0..(BME68X_LEN_FIELD * 3) {
+            buff[i] = regs[i];
+        }
+
+        let regs = self.get_regs(BME68xRegister::IdacHeat0, 30)?;
+        for i in 0..30 {
+            set_val[i] = regs[i];
+        }
+
+        for i in 0..3 {
+            let off = i * BME68X_LEN_FIELD;
+            data[i].status = buff[off] & BME68X_NEW_DATA_MSK;
+            data[i].gas_index = buff[off] & BME68X_GAS_INDEX_MSK;
+            data[i].meas_index = buff[off + 1];
+            let adc_pres = (u32::from(buff[off + 2]) * 4096)
+                | (u32::from(buff[off + 3]) * 16)
+                | (u32::from(buff[off + 4]) / 16);
+            let adc_temp = (u32::from(buff[off + 5]) * 4096)
+                | (u32::from(buff[off + 6]) * 16)
+                | (u32::from(buff[off + 7]) / 16);
+            let adc_hum = (u32::from(buff[off + 8]) * 256) | u32::from(buff[off + 9]);
+            let adc_gas_res_low =
+                u32::from(buff[off + 13]) * 4 | ((u32::from(buff[off + 14])) / 64);
+            let adc_gas_res_high =
+                u32::from(buff[off + 15]) * 4 | ((u32::from(buff[off + 16])) / 64);
+            let gas_range_l = buff[off + 14] & BME68X_GAS_RANGE_MSK;
+            let gas_range_h = buff[off + 16] & BME68X_GAS_RANGE_MSK;
+            if (self.variant_id == BME68X_VARIANT_GAS_HIGH) {
+                data[i].status |= buff[off + 16] & BME68X_GASM_VALID_MSK;
+                data[i].status |= buff[off + 16] & BME68X_HEAT_STAB_MSK;
+            } else {
+                data[i].status |= buff[off + 14] & BME68X_GASM_VALID_MSK;
+                data[i].status |= buff[off + 14] & BME68X_HEAT_STAB_MSK;
+            }
+            data[i].idac = set_val[usize::from(data[i].gas_index)];
+            data[i].res_heat = set_val[usize::from(10 + data[i].gas_index)];
+            data[i].gas_wait = set_val[usize::from(20 + data[i].gas_index)];
+            data[i].temperature = self.calc_temperature(adc_temp);
+            data[i].pressure = self.calc_pressure(adc_pres);
+            data[i].humidity = self.calc_humidity(adc_hum);
+            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+                data[i].gas_resistance =
+                    calc_gas_resistance_high(adc_gas_res_high as u16, gas_range_h);
+            } else {
+                data[i].gas_resistance =
+                    self.calc_gas_resistance_low(adc_gas_res_low as u16, gas_range_l);
+            }
+        }
+
         todo!()
     }
 
@@ -1547,4 +1588,17 @@ fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xE
         }
     }
     Ok(())
+}
+
+/// Calculate gas resistance high value as a float
+///
+/// # Arguments:
+/// * `gas_res_adc`: Raw ADC gas resistance value
+/// * `gas_range`: The gas range to use for the calculation
+fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
+    let var1: u32 = 262144 >> gas_range;
+    let var2: i32 = (gas_res_adc as i32) - 512;
+    let var2 = var2 * 3;
+    let var2 = 4096 + var2;
+    1000000.0 * var1 as f32 / var2 as f32
 }
