@@ -1398,7 +1398,7 @@ impl BME68xDev {
             }
         }
 
-        todo!()
+        Ok(())
     }
 
     /// Switch between SPI memory pages
