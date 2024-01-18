@@ -707,6 +707,7 @@ pub struct BME68xConf {
     /// Pressure Oversampling
     pub os_pres: BME68xOs,
 
+    // FIXME: Need enum
     /// Filter Coefficent
     pub filter: u8,
 
@@ -739,6 +740,7 @@ pub struct BME68xHeatrConf {
     pub shared_heatr_dur: u16,
 }
 
+// TODO: constructors for each mode
 impl BME68xHeatrConf {
     /// Create a new empty instance.
     pub fn new() -> Self {
