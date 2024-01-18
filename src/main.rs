@@ -53,10 +53,12 @@ fn main() {
         shared_heatr_dur: 0,
     };
     bme.init().unwrap();
+    // bme.selftest_check().unwrap();
     bme.set_config(&bme_conf).unwrap();
     bme.set_heatr_conf(BME68xOpMode::ForcedMode, &bme_heater_conf)
         .unwrap();
-    loop {
+
+    for _ in 0..5 {
         // let als = veml.get_ambient_level().unwrap();
         bme.set_op_mode(BME68xOpMode::ForcedMode).unwrap();
         let del_period = bme.get_meas_dur(BME68xOpMode::ForcedMode, &bme_conf);
@@ -73,8 +75,97 @@ fn main() {
                 entry.status,
             )
         }
-        // log::info!("{als}");
-        // bme.selftest_check().unwrap();
+
         FreeRtos::delay_ms(1000);
     }
+    log::info!("Finished Forced Test");
+    bme.init().unwrap();
+    let bme_conf = BME68xConf {
+        filter: 0,
+        os_hum: BME68xOs::Os1x,
+        os_temp: BME68xOs::Os2x,
+        os_pres: BME68xOs::Os16x,
+        odr: BME68xODR::ODRNone,
+    };
+    let bme_heater_conf = BME68xHeatrConf {
+        enable: 1,
+        heatr_temp: 0,
+        heatr_dur: 0,
+        heatr_temp_prof: [320, 100, 100, 100, 200, 200, 200, 320, 320, 320],
+        heatr_dur_prof: [5, 2, 10, 30, 5, 5, 5, 5, 5, 5],
+        profile_len: 10,
+        shared_heatr_dur: (140 - (bme.get_meas_dur(BME68xOpMode::ParallelMode, &bme_conf) / 1000))
+            as u16,
+    };
+    bme.init().unwrap();
+    bme.set_config(&bme_conf).unwrap();
+    bme.set_heatr_conf(BME68xOpMode::ParallelMode, &bme_heater_conf)
+        .unwrap();
+    bme.set_op_mode(BME68xOpMode::ParallelMode).unwrap();
+    let mut sample_count = 0;
+    while sample_count <= 50 {
+        let del_period = bme.get_meas_dur(BME68xOpMode::ParallelMode, &bme_conf)
+            + (i32::from(bme_heater_conf.shared_heatr_dur) * 1000);
+
+        FreeRtos::delay_us(del_period as u32);
+
+        let read_result = bme.get_data(BME68xOpMode::ParallelMode);
+        if read_result.is_err() {
+            log::warn!("Sensor Error: {:?}", read_result);
+        } else {
+            let (data, n_fields) = read_result.unwrap();
+            for i in 0..n_fields as usize {
+                if data[i].status == 0xB0 {
+                    log::info!("sample: {}, temp: {}, pressure: {}, hum: {}, gas: {}, status: {}, gas_index: {}, meas_index: {}",
+        sample_count, data[i].temperature, data[i].pressure, data[i].humidity, data[i].gas_resistance, data[i].status, data[i].gas_index, data[i].meas_index);
+                    sample_count += 1;
+                }
+            }
+        }
+    }
+    log::info!("Finished parallel test");
+    bme.init().unwrap();
+    let bme_conf = BME68xConf {
+        filter: 0,
+        os_hum: BME68xOs::Os16x,
+        os_temp: BME68xOs::Os2x,
+        os_pres: BME68xOs::Os1x,
+        odr: BME68xODR::ODRNone,
+    };
+    let bme_heater_conf = BME68xHeatrConf {
+        enable: 1,
+        heatr_temp: 0,
+        heatr_dur: 0,
+        heatr_temp_prof: [200, 240, 280, 320, 360, 360, 320, 280, 240, 200],
+        heatr_dur_prof: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
+        profile_len: 10,
+        shared_heatr_dur: 0,
+    };
+    bme.init().unwrap();
+    bme.set_config(&bme_conf).unwrap();
+    bme.set_heatr_conf(BME68xOpMode::SequentialMode, &bme_heater_conf)
+        .unwrap();
+    bme.set_op_mode(BME68xOpMode::SequentialMode).unwrap();
+
+    let mut sample_count = 0;
+    while sample_count <= 300 {
+        let del_period = bme.get_meas_dur(BME68xOpMode::SequentialMode, &bme_conf)
+            + (i32::from(bme_heater_conf.shared_heatr_dur) * 1000);
+        FreeRtos::delay_us(del_period as u32);
+
+        let read_result = bme.get_data(BME68xOpMode::SequentialMode);
+        if read_result.is_err() {
+            log::warn!("Sensor Error: {:?}", read_result);
+        } else {
+            let (data, n_fields) = read_result.unwrap();
+            for i in 0..n_fields as usize {
+                if data[i].status == 0xB0 {
+                    log::info!("sample: {}, temp: {}, pressure: {}, hum: {}, gas: {}, status: {}, gas_index: {}, meas_index: {}",
+        sample_count, data[i].temperature, data[i].pressure, data[i].humidity, data[i].gas_resistance, data[i].status, data[i].gas_index, data[i].meas_index);
+                    sample_count += 1;
+                }
+            }
+        }
+    }
+    log::info!("Finished sequential test");
 }
