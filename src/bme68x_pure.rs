@@ -1019,23 +1019,23 @@ impl<I2C: I2c> BME68xDev<I2C> {
             data_array[4],
             BME68X_FILTER_MSK,
             BME68X_FILTER_POS,
-            conf.filter as u8,
+            conf.filter.into(),
         );
         data_array[3] = set_bits(
             data_array[3],
             BME68X_OST_MSK,
             BME68X_OST_POS,
-            conf.os_temp as u8,
+            conf.os_temp.into(),
         );
         data_array[3] = set_bits(
             data_array[3],
             BME68X_OSP_MSK,
             BME68X_OSP_POS,
-            conf.os_pres as u8,
+            conf.os_pres.into(),
         );
-        data_array[1] = set_bits_pos_0(data_array[1], BME68X_OSH_MSK, conf.os_hum as u8);
+        data_array[1] = set_bits_pos_0(data_array[1], BME68X_OSH_MSK, conf.os_hum.into());
         if !matches!(conf.odr, BME68xODR::ODRNone) {
-            odr20 = conf.odr as u8;
+            odr20 = conf.odr.into();
             odr3 = 0;
         }
         data_array[4] = set_bits(data_array[4], BME68X_ODR20_MSK, BME68X_ODR20_POS, odr20);
