@@ -1218,6 +1218,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     /// Returns an error if the self test failed.
+    // FIXME This function is not working right now. Not sure why
     pub fn selftest_check(&mut self) -> Result<(), BME68xError> {
         // TODO: Figure out how we can re-enable cloning for test?
         // let mut t_dev = self.clone();
