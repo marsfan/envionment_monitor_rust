@@ -930,16 +930,19 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Errors
     /// Returns an error if soft-resetting the sensor failed.
     pub fn soft_reset(&mut self) -> Result<(), BME68xError> {
-        self.get_mem_page()?;
         if matches!(self.intf, BME68xIntf::SPIIntf) {
-            self.set_regs(
-                &[BME68xRegister::SoftReset.into()],
-                &[BME68X_SOFT_RESET_CMD],
-                1,
-            )?;
-            (self.delay_us)(BME68X_PERIOD_RESET);
             self.get_mem_page()?;
         }
+        self.set_regs(
+            &[BME68xRegister::SoftReset.into()],
+            &[BME68X_SOFT_RESET_CMD],
+            1,
+        )?;
+        (self.delay_us)(BME68X_PERIOD_RESET);
+        if matches!(self.intf, BME68xIntf::SPIIntf) {
+            self.get_mem_page()?;
+        }
+
         Ok(())
     }
 
