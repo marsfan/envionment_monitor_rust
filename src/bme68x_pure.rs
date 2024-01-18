@@ -1245,10 +1245,13 @@ impl<I2C: I2c> BME68xDev<I2C> {
         // Wait for measurement to complete
         (self.delay_us)(BME68X_HEATR_DUR1_DELAY);
         let (data, _) = self.get_data(BME68xOpMode::ForcedMode)?;
-        if !((data[0].idac != 0x00)
+
+        if (data[0].idac != 0x00)
             && (data[0].idac != 0xFF)
-            && ((data[0].status & BME68X_GASM_VALID_MSK) == 0))
+            && ((data[0].status & BME68X_GASM_VALID_MSK) != 0)
         {
+            // Do Nothiung
+        } else {
             return Err(BME68xError::SelfTest);
         }
 

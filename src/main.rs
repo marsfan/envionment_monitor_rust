@@ -51,7 +51,7 @@ fn main() {
         shared_heatr_dur: 0,
     };
     bme.init().unwrap();
-    // bme.selftest_check().unwrap();
+    bme.selftest_check().unwrap();
     bme.set_config(&bme_conf).unwrap();
     bme.set_heatr_conf(BME68xOpMode::ForcedMode, &bme_heater_conf)
         .unwrap();
