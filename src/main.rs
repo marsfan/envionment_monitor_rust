@@ -1,4 +1,5 @@
 //! Environment Monitoring application
+use embedded_hal::i2c::I2c;
 use environment_monitor_rust::bme68x_pure::{
     BME68xAddr, BME68xConf, BME68xDev, BME68xHeatrConf, BME68xIntf, BME68xODR, BME68xOpMode,
     BME68xOs,
@@ -8,32 +9,9 @@ use esp_idf_hal::i2c::{I2cConfig, I2cDriver};
 use esp_idf_hal::peripherals::Peripherals;
 use esp_idf_hal::prelude::*;
 
-fn main() {
-    // It is necessary to call this function once. Otherwise some patches to the runtime
-    // implemented by esp-idf-sys might not link properly. See https://github.com/esp-rs/esp-idf-template/issues/71
-    esp_idf_svc::sys::link_patches();
-
-    let peripherals = Peripherals::take().unwrap();
-
-    let i2c_config = I2cConfig::new().baudrate(100.kHz().into());
-    let i2c_driver = I2cDriver::new(
-        peripherals.i2c0,
-        peripherals.pins.gpio32,
-        peripherals.pins.gpio33,
-        &i2c_config,
-    )
-    .unwrap();
-
-    // Bind the log crate to the ESP Logging facilities
-    esp_idf_svc::log::EspLogger::initialize_default();
-
-    let mut bme = BME68xDev::new(
-        i2c_driver,
-        BME68xAddr::HIGH,
-        25,
-        BME68xIntf::I2CIntf,
-        Box::new(|delay| FreeRtos::delay_us(delay)),
-    );
+/// Test `BME68x` Forced Mode
+fn test_forced<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
+    bme.init().unwrap();
     let bme_conf = BME68xConf {
         filter: 0,
         os_hum: BME68xOs::Os16x,
@@ -50,8 +28,6 @@ fn main() {
         profile_len: 0,
         shared_heatr_dur: 0,
     };
-    bme.init().unwrap();
-    bme.selftest_check().unwrap();
     bme.set_config(&bme_conf).unwrap();
     bme.set_heatr_conf(BME68xOpMode::ForcedMode, &bme_heater_conf)
         .unwrap();
@@ -70,12 +46,16 @@ fn main() {
                 entry.humidity,
                 entry.gas_resistance,
                 entry.status,
-            )
+            );
         }
 
         FreeRtos::delay_ms(1000);
     }
     log::info!("Finished Forced Test");
+}
+
+/// Test `BME68x` Parallel Mode
+fn test_parallel<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     bme.init().unwrap();
     let bme_conf = BME68xConf {
         filter: 0,
@@ -111,16 +91,19 @@ fn main() {
             log::warn!("Sensor Error: {:?}", read_result);
         } else {
             let (data, n_fields) = read_result.unwrap();
-            for i in 0..n_fields as usize {
-                if data[i].status == 0xB0 {
-                    log::info!("sample: {}, temp: {}, pressure: {}, hum: {}, gas: {}, status: {}, gas_index: {}, meas_index: {}",
-        sample_count, data[i].temperature, data[i].pressure, data[i].humidity, data[i].gas_resistance, data[i].status, data[i].gas_index, data[i].meas_index);
+            for entry in data.iter().take(n_fields as usize) {
+                if entry.status == 0xB0 {
+                    log::info!("sample: {}, temp: {}, pressure: {}, hum: {}, gas: {}, status: {}, gas_index: {}, meas_index: {}", sample_count, entry.temperature, entry.pressure, entry.humidity, entry.gas_resistance, entry.status, entry.gas_index, entry.meas_index);
                     sample_count += 1;
                 }
             }
         }
     }
     log::info!("Finished parallel test");
+}
+
+/// Test `BME68x` Sequential Mode
+fn test_sequential<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     bme.init().unwrap();
     let bme_conf = BME68xConf {
         filter: 0,
@@ -155,14 +138,47 @@ fn main() {
             log::warn!("Sensor Error: {:?}", read_result);
         } else {
             let (data, n_fields) = read_result.unwrap();
-            for i in 0..n_fields as usize {
-                if data[i].status == 0xB0 {
-                    log::info!("sample: {}, temp: {}, pressure: {}, hum: {}, gas: {}, status: {}, gas_index: {}, meas_index: {}",
-        sample_count, data[i].temperature, data[i].pressure, data[i].humidity, data[i].gas_resistance, data[i].status, data[i].gas_index, data[i].meas_index);
+            for entry in data.iter().take(n_fields as usize) {
+                if entry.status == 0xB0 {
+                    log::info!("sample: {}, temp: {}, pressure: {}, hum: {}, gas: {}, status: {}, gas_index: {}, meas_index: {}", sample_count, entry.temperature, entry.pressure, entry.humidity, entry.gas_resistance, entry.status, entry.gas_index, entry.meas_index);
                     sample_count += 1;
                 }
             }
         }
     }
     log::info!("Finished sequential test");
+}
+
+fn main() {
+    // It is necessary to call this function once. Otherwise some patches to the runtime
+    // implemented by esp-idf-sys might not link properly. See https://github.com/esp-rs/esp-idf-template/issues/71
+    esp_idf_svc::sys::link_patches();
+
+    let peripherals = Peripherals::take().unwrap();
+
+    let i2c_config = I2cConfig::new().baudrate(100.kHz().into());
+    let i2c_driver = I2cDriver::new(
+        peripherals.i2c0,
+        peripherals.pins.gpio32,
+        peripherals.pins.gpio33,
+        &i2c_config,
+    )
+    .unwrap();
+
+    // Bind the log crate to the ESP Logging facilities
+    esp_idf_svc::log::EspLogger::initialize_default();
+
+    let mut bme = BME68xDev::new(
+        i2c_driver,
+        BME68xAddr::HIGH,
+        25,
+        BME68xIntf::I2CIntf,
+        Box::new(FreeRtos::delay_us),
+    );
+
+    bme.init().unwrap();
+    // bme.selftest_check().unwrap();
+    test_forced(&mut bme);
+    test_parallel(&mut bme);
+    test_sequential(&mut bme);
 }
