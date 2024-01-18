@@ -400,6 +400,12 @@ pub enum BME68xOs {
     Os16x = 5,
 }
 
+impl From<BME68xOs> for u8 {
+    fn from(value: BME68xOs) -> Self {
+        value as u8
+    }
+}
+
 impl From<u8> for BME68xOs {
     fn from(value: u8) -> Self {
         match value {
@@ -444,6 +450,12 @@ pub enum BME68xODR {
 
     ///  No standby time
     ODRNone = 8,
+}
+
+impl From<BME68xODR> for u8 {
+    fn from(value: BME68xODR) -> Self {
+        value as u8
+    }
 }
 
 impl From<u8> for BME68xODR {
@@ -491,6 +503,12 @@ pub enum BME68xOpMode {
 
     /// Sequential Mode
     SequentialMode = 3,
+}
+
+impl From<BME68xOpMode> for u8 {
+    fn from(value: BME68xOpMode) -> Self {
+        value as u8
+    }
 }
 
 impl From<u8> for BME68xOpMode {
