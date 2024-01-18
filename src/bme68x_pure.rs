@@ -379,7 +379,7 @@ impl From<BME68xRegister> for u8 {
 
 /// BME68X Oversampling Settings
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub enum BME68xOs {
     /// Switch off measurement
     OsNone = 0,
@@ -696,7 +696,7 @@ impl BME68xCalibData {
 }
 
 /// BME68X sensor settings structure which comprises of ODR, over-sampling and filter settings.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct BME68xConf {
     /// Humidity overrsampling
     pub os_hum: BME68xOs,
@@ -716,6 +716,7 @@ pub struct BME68xConf {
 }
 
 /// Gas Heater Configuration
+#[derive(Debug, Clone, Copy)]
 pub struct BME68xHeatrConf {
     /// Enable gas measurement
     pub enable: u8,
