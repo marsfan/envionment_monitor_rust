@@ -660,6 +660,41 @@ pub struct BME68xCalibData {
     pub range_sw_err: i8,
 }
 
+impl BME68xCalibData {
+    /// Create an empty instance
+    fn new() -> Self {
+        Self {
+            par_gh1: 0,
+            par_h1: 0,
+            par_h2: 0,
+            par_h3: 0,
+            par_h4: 0,
+            par_h5: 0,
+            par_h6: 0,
+            par_h7: 0,
+            par_gh2: 0,
+            par_gh3: 0,
+            par_t1: 0,
+            par_t2: 0,
+            par_p1: 0,
+            par_t3: 0,
+            par_p10: 0,
+            par_p2: 0,
+            par_p3: 0,
+            par_p4: 0,
+            par_p5: 0,
+            par_p6: 0,
+            par_p7: 0,
+            par_p8: 0,
+            par_p9: 0,
+            range_sw_err: 0,
+            res_heat_range: 0,
+            res_heat_val: 0,
+            t_fine: 0.0,
+        }
+    }
+}
+
 /// BME68X sensor settings structure which comprises of ODR, over-sampling and filter settings.
 #[derive(Clone, Copy)]
 pub struct BME68xConf {
@@ -765,6 +800,36 @@ impl From<BME68xAddr> for u8 {
 }
 
 impl<I2C: I2c> BME68xDev<I2C> {
+    /// Create a new instance of the sensor
+    ///
+    /// # Arguments
+    /// * `bus`: The communication bus to use for talking with the sensor
+    /// * `address`: The address to use for talking to the sensor
+    /// * `amb_temp`: Ambient temperature to use for compensation, in degrees C. 25 is a safe value for this
+    /// * `intf`: The interface type to use for communication
+    /// * `delay_us`: Function to use for performing delay in microseconds.
+    pub fn new(
+        bus: I2C,
+        address: BME68xAddr,
+        amb_temp: i8,
+        intf: BME68xIntf,
+        delay_us: Box<dyn Fn(u32)>,
+    ) -> Self {
+        Self {
+            address,
+            i2c: bus,
+            chip_id: 0,
+            amb_temp,
+            variant_id: 0,
+            intf,
+            mem_page: 0,
+            calib: BME68xCalibData::new(),
+            intf_rslt: BME68xError::Ok,
+            info_msg: BME68xError::Ok,
+            delay_us,
+        }
+    }
+
     /// Initialize the sensor.
     ///
     /// Reads the Chip ID and calibrates the sensor.
