@@ -878,6 +878,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 }
                 tmp_buff[(2 * index) + 1] = reg_data[index];
             }
+            println!("{:?}", tmp_buff);
             let result = self
                 .i2c
                 .write(self.address.into(), &tmp_buff[0..((2 * len) - 1)]);
