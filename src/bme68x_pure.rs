@@ -1131,13 +1131,13 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let temp_reg_data = self.get_regs(BME68xRegister::ResHeat0.into(), 10)?;
         // FIXME: Pass in profile len conf, like in the original API.
         for i in 0..10 {
-            conf.heatr_temp_prof[i] = temp_reg_data[i] as u16;
+            conf.heatr_temp_prof[i] = temp_reg_data[i].into();
         }
 
         let time_reg_data = self.get_regs(BME68xRegister::GasWait0.into(), 10)?;
         // FIXME: Pass in profile len conf, like in the original API.
         for i in 0..10 {
-            conf.heatr_dur_prof[i] = time_reg_data[i] as u16;
+            conf.heatr_dur_prof[i] = time_reg_data[i].into();
         }
         Ok(conf)
     }
@@ -1274,10 +1274,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
         self.calib.par_p10 = coeff_array[BME68X_IDX_P10];
 
         /* Humidity related coefficients */
-        self.calib.par_h1 = ((coeff_array[BME68X_IDX_H1_MSB] as u16) << 4)
-            | ((coeff_array[BME68X_IDX_H1_LSB] as u16) & BME68X_BIT_H1_DATA_MSK);
-        self.calib.par_h2 = ((coeff_array[BME68X_IDX_H2_MSB] as u16) << 4)
-            | (((coeff_array[BME68X_IDX_H2_LSB]) as u16) >> 4);
+        self.calib.par_h1 = (u16::from(coeff_array[BME68X_IDX_H1_MSB]) << 4)
+            | (u16::from(coeff_array[BME68X_IDX_H1_LSB]) & BME68X_BIT_H1_DATA_MSK);
+        self.calib.par_h2 = (u16::from(coeff_array[BME68X_IDX_H2_MSB]) << 4)
+            | (u16::from(coeff_array[BME68X_IDX_H2_LSB]) >> 4);
         self.calib.par_h3 = coeff_array[BME68X_IDX_H3] as i8;
         self.calib.par_h4 = coeff_array[BME68X_IDX_H4] as i8;
         self.calib.par_h5 = coeff_array[BME68X_IDX_H5] as i8;
@@ -1620,7 +1620,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             }
             BME68xOpMode::SequentialMode => {
                 for i in 0..conf.profile_len {
-                    let index = i as usize;
+                    let index: usize = i.into();
                     rh_reg_addr[index] = u8::from(BME68xRegister::ResHeat0) + i;
                     rh_reg_data[index] = self.calc_res_heat(conf.heatr_temp_prof[index]);
                     gw_reg_addr[index] = u8::from(BME68xRegister::GasWait0) + i;
@@ -1635,7 +1635,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 }
 
                 for i in 0..conf.profile_len {
-                    let index = i as usize;
+                    let index: usize = i.into();
                     rh_reg_addr[index] = u8::from(BME68xRegister::ResHeat0) + i;
                     rh_reg_data[index] = self.calc_res_heat(conf.heatr_temp_prof[index]);
                     gw_reg_addr[index] = u8::from(BME68xRegister::GasWait0) + i;
@@ -1786,7 +1786,7 @@ fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xE
 /// * `gas_range`: The gas range to use for the calculation
 fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
     let var1: u32 = 262144 >> gas_range;
-    let var2: i32 = (gas_res_adc as i32) - 512;
+    let var2: i32 = i32::from(gas_res_adc) - 512;
     let var2 = var2 * 3;
     let var2 = 4096 + var2;
     1000000.0 * var1 as f32 / var2 as f32
