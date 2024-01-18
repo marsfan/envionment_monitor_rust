@@ -4,44 +4,92 @@
 use embedded_hal::i2c::I2c;
 
 // Other stuff
+
+///  Chip Unique Identifier
 const BME68X_CHIP_ID: u8 = 0x61;
+
+/// Soft Reset Command
 const BME68X_SOFT_RESET_CMD: u8 = 0xb6;
-const BME68X_ENABLE: u8 = 0x01;
+
+/// Wait period for a soft reset
 const BME68X_PERIOD_RESET: u32 = 10000;
+
+/// Period between two polls
 const BME68X_PERIOD_POLL: u32 = 10000;
 
 // For self test
+/// Self test heater duration 1
 const BME68X_HEATR_DUR1: u16 = 1000;
+
+/// Self Test Heater duration 2
 const BME68X_HEATR_DUR2: u16 = 2000;
+
+/// Self test low temperature
 const BME68X_LOW_TEMP: u16 = 150;
+
+/// Self Test High Temperature
 const BME68X_HIGH_TEMP: u16 = 350;
+
+/// Self Test Number of Measurements
 const BME68X_N_MEAS: usize = 6;
+
+/// Self Test Heater duration 1 delay time
 const BME68X_HEATR_DUR1_DELAY: u32 = 1000000;
+
+/// Self test heater duration 2 delay time
 const BME68X_HEATR_DUR2_DELAY: u32 = 2000000;
 
 // TODO: Make these an enum
+/// Disable
+const BME68X_DISABLE: u8 = 0x0;
+/// Enable
+const BME68X_ENABLE: u8 = 0x01;
+
+// TODO: Make these an enum
+/// Enable Heater
 const BME68X_DISABLE_HEATER: u8 = 0x01;
+/// Disable Heater
 const BME68X_ENABLE_HEATER: u8 = 0x00;
 
 // TODO: Make these an enum
+// TODO: What exactly is high/low
+/// Disable Gas Measurement
 const BME68X_DISABLE_GAS_MEAS: u8 = 0x00;
+/// Enable High Gas Measuremnt
 const BME68X_ENABLE_GAS_MEAS_H: u8 = 0x02;
+/// Enable Low gas measurement
 const BME68X_ENABLE_GAS_MEAS_L: u8 = 0x01;
 
 // TODO: Make these an enum
+// TODO: What is high/low
+/// Low Gas Variant
 const BME68X_VARIANT_GAS_LOW: u32 = 0x00;
+/// High Gas Variant
 const BME68X_VARIANT_GAS_HIGH: u32 = 0x01;
 
 // TODO: Make these an enum
+/// SPI Memory Page 0
 const BME68X_MEM_PAGE0: u8 = 0x10;
+/// SPI Memory Page 1
 const BME68X_MEM_PAGE1: u8 = 0x00;
 
-// Min/max values allowed.
+// Min/max values allowed for testing
+/// Min temp of 0c
 const BME68X_MIN_TEMPERATURE: f32 = 0.0;
+
+/// Max Temp of 60c
 const BME68X_MAX_TEMPERATURE: f32 = 60.0;
+
+/// Min pressure of 900 Hecto Pascals
 const BME68X_MIN_PRESSURE: f32 = 90000.0;
+
+/// Max pressure of 1100 hecto pascals
 const BME68X_MAX_PRESSURE: f32 = 110000.0;
+
+/// Min humidity of 20%
 const BME68X_MIN_HUMIDITY: f32 = 20.0;
+
+/// Max humidity of 80%
 const BME68X_MAX_HUMIDITY: f32 = 80.0;
 
 // Masks
@@ -280,7 +328,7 @@ pub enum BME68xAddr {
     HIGH = 0x77,
 }
 
-/// BME68x error codes
+/// Chip Error codes
 #[repr(i8)]
 #[derive(Debug, Clone, Copy)]
 pub enum BME68xError {
@@ -840,6 +888,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     /// Returns an error if the initialzation is unsuccessful.
+    ///
+    /// # Panics
+    /// Can panic if soft-resetting of the chip fails.
     pub fn init(&mut self) -> Result<(), BME68xError> {
         self.soft_reset().unwrap();
 
@@ -1214,7 +1265,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         Ok(conf)
     }
 
-    /// Perform a self test of the low gas variant of the BME68x
+    /// Perform a self test of the low gas variant of the sensor
     ///
     /// # Errors
     /// Returns an error if the self test failed.
@@ -1756,6 +1807,7 @@ fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
 }
 
 // TODO: Document properly
+/// Calcualte gas wait time
 fn calc_gas_wait(mut dur: u16) -> u8 {
     let mut factor = 0;
     if dur >= 0xfc0 {
@@ -1813,6 +1865,7 @@ fn set_bits(reg_data: u8, bitmask: u8, bitpos: u8, data: u8) -> u8 {
     (reg_data & !(bitmask)) | ((data << bitpos) & bitmask)
 }
 
+/// Set bits starting from position 0
 fn set_bits_pos_0(reg_data: u8, bitmask: u8, data: u8) -> u8 {
     (reg_data & !(bitmask)) | (data & bitmask)
 }
