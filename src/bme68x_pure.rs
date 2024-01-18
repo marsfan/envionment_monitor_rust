@@ -524,7 +524,7 @@ impl From<u8> for BME68xOpMode {
 }
 
 /// Sensor Field Data Structure
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct BME68xData {
     /// Sensor Status (new_data, gasm_valid, heat_stab)
     pub status: u8,
@@ -1004,7 +1004,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         // TPH Measurement Duration
         meas_dur = meas_cycles * 1963;
-        meas_dur += 477 * 5; // TPH Switching Duration
+        meas_dur += 477 * 4; // TPH Switching Duration
         meas_dur += 477 * 5; // Gas measurement duration
 
         if matches!(op_mode, BME68xOpMode::ParallelMode) {
@@ -1026,6 +1026,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     // TODO: Remove the number of elements?
+    // FIXME: Make n_fields a usize
     pub fn get_data(
         &mut self,
         op_mode: BME68xOpMode,
@@ -1197,6 +1198,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// Returns an error if reading the heater configuration failed.
     pub fn get_heatr_conf(&mut self) -> Result<BME68xHeatrConf, BME68xError> {
         let mut conf = BME68xHeatrConf::new();
+        /* FIXME: Add conversion to deg C and ms and add the other parameters. This is copied from the original BME68x.c file  */
+
         let temp_reg_data = self.get_regs(BME68xRegister::ResHeat0.into(), 10)?;
         // FIXME: Pass in profile len conf, like in the original API.
         for i in 0..10 {
@@ -1513,6 +1516,11 @@ impl<I2C: I2c> BME68xDev<I2C> {
             for i in 0..BME68X_LEN_FIELD {
                 buff[i] = regs[i];
             }
+
+            data.status = buff[0] & BME68X_NEW_DATA_MSK;
+            data.gas_index = buff[0] & BME68X_GAS_INDEX_MSK;
+            data.meas_index = buff[1];
+
             let adc_pres =
                 (u32::from(buff[2]) * 4096) | (u32::from(buff[3]) * 16) | (u32::from(buff[4]) / 16);
             let adc_temp =
