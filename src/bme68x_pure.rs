@@ -1289,7 +1289,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
             profile_len: 0,
             shared_heatr_dur: 0,
         };
-
+        self.init()?;
+        self.set_heatr_conf(BME68xOpMode::ForcedMode, &heatr_conf)?;
         self.set_config(&conf)?;
         self.set_op_mode(BME68xOpMode::ForcedMode)?;
 
@@ -1308,7 +1309,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         heatr_conf.heatr_dur = BME68X_HEATR_DUR2;
 
-        let mut data = [BME68xData::new(); 3];
+        let mut data = [BME68xData::new(); BME68X_N_MEAS];
         let mut i = 0;
         while i < BME68X_N_MEAS {
             if (i % 2) == 0 {
@@ -1322,7 +1323,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
             // Wait for measurement to complete
             (self.delay_us)(BME68X_HEATR_DUR2_DELAY);
-            (data, _) = self.get_data(BME68xOpMode::ForcedMode)?;
+            let (samples, _) = self.get_data(BME68xOpMode::ForcedMode)?;
+            data[i] = samples[0];
             i += 1;
         }
         analyze_sensor_data(&data, BME68X_N_MEAS)

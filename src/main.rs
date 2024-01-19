@@ -177,7 +177,7 @@ fn main() {
     );
 
     bme.init().unwrap();
-    // bme.selftest_check().unwrap();
+    bme.selftest_check().unwrap();
     test_forced(&mut bme);
     test_parallel(&mut bme);
     test_sequential(&mut bme);
