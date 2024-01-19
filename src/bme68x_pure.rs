@@ -1788,7 +1788,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                     rh_reg_addr[index] = u8::from(BME68xRegister::ResHeat0) + i;
                     rh_reg_data[index] = self.calc_res_heat(conf.heatr_temp_prof[index]);
                     gw_reg_addr[index] = u8::from(BME68xRegister::GasWait0) + i;
-                    gw_reg_data[index] = conf.heatr_dur_prof[index] as u8;
+                    gw_reg_data[index] = calc_gas_wait(conf.heatr_dur_prof[index]);
                     nb_conv = conf.profile_len;
                     write_len = conf.profile_len;
                     let shared_dur = calc_heatr_dur_shared(conf.shared_heatr_dur);
