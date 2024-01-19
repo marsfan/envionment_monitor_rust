@@ -352,6 +352,10 @@ pub enum BME68xError {
     /// Self Test Error
     SelfTest = -5,
 
+    /// Casting Error. Should never happen, but putting it here so we
+    /// have a recoverable error if it magically does happen
+    CastError = -6,
+
     /// Define a valid operation mode
     DefineOpMode = 1,
 
@@ -360,6 +364,12 @@ pub enum BME68xError {
 
     /// Define shared heating duration
     DefineShdHeatrDur = 3,
+}
+
+impl From<TryFromIntError> for BME68xError {
+    fn from(_value: TryFromIntError) -> Self {
+        Self::CastError
+    }
 }
 
 /// BME68X Registers
