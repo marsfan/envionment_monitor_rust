@@ -1469,7 +1469,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     fn calc_temperature(&mut self, temp_adc: u32) -> f32 {
         let par_t1_f32 = f32::from(self.calib.par_t1);
         let par_t3_f32 = f32::from(self.calib.par_t3);
-        let temp_f32 = temp_adc as f32;
+        let temp_f32 = cast_u2f32(temp_adc);
 
         let var1 = ((temp_f32 / 16384.0) - (par_t1_f32 / 1024.0)) * (par_t1_f32);
 
@@ -1498,7 +1498,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
             + (f32::from(self.calib.par_p2) * var1))
             / 524288.0;
         let var1 = (1.0 + (var1 / 32768.0)) * (f32::from(self.calib.par_p1));
-        let calc_pres = 1048576.0 - (pres_adc as f32);
+        // TODO: Might be worth looking to see if we can safe casting to float until later to reduce
+        // operation of float
+        let calc_pres = 1048576.0 - cast_u2f32(pres_adc);
 
         if var1 != 0.0 {
             let calc_pres = ((calc_pres - (var2 / 4096.0)) * 6250.0) / var1;
@@ -1520,7 +1522,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `hum_adc`: Raw humidty ADC value
     fn calc_humidity(&self, hum_adc: u32) -> f32 {
         let temp_comp = (self.calib.t_fine) / 5120.0;
-        let var1 = (hum_adc as f32)
+        // TODO: Might be worth looking to see if we can safe casting to float until later to reduce
+        // operation of float
+        let var1 = cast_u2f32(hum_adc)
             - ((f32::from(self.calib.par_h1) * 16.0)
                 + ((f32::from(self.calib.par_h3) / 2.0) * temp_comp));
         let var2 = var1
@@ -1548,7 +1552,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `gas_range`: The gas range to use for the calculation
     fn calc_gas_resistance_low(&self, gas_res_adc: u16, gas_range: u8) -> f32 {
         let gas_res_f = f32::from(gas_res_adc);
-        let gas_range_f = (1 << gas_range) as f32;
+        let gas_range_f = cast_i2f32(1 << gas_range);
         let lookup_k1_range = [
             0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0,
         ];
@@ -1962,7 +1966,7 @@ fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
     let var2: i32 = i32::from(gas_res_adc) - 512;
     let var2 = var2 * 3;
     let var2 = 4096 + var2;
-    1000000.0 * var1 as f32 / var2 as f32
+    1000000.0 * cast_u2f32(var1) / cast_i2f32(var2)
 }
 
 /// Convert a u8 to an i8, allowing wrapping.
@@ -1997,4 +2001,36 @@ fn wrap_u2i8(value: u8) -> i8 {
 fn wrap_u2i16(value: u16) -> i16 {
     #[allow(clippy::cast_possible_wrap)]
     (value as i16)
+}
+/// Convert a u32 to an f32, allowing precision loss.
+///
+/// This exists to reduce the number of clippy errors in this file,
+/// as this happens fairly frequently. If this function is used, it
+/// indicates that the specific cast was checked and wrapping is intended.
+///
+/// # Arguments
+/// * `value`: The value to convert
+///
+/// # Returns
+/// The converted value
+// TODO: Turn into a macro?
+fn cast_u2f32(value: u32) -> f32 {
+    #[allow(clippy::cast_precision_loss)]
+    (value as f32)
+}
+/// Convert a i32 to an f32, allowing precision loss.
+///
+/// This exists to reduce the number of clippy errors in this file,
+/// as this happens fairly frequently. If this function is used, it
+/// indicates that the specific cast was checked and wrapping is intended.
+///
+/// # Arguments
+/// * `value`: The value to convert
+///
+/// # Returns
+/// The converted value
+// TODO: Turn into a macro?
+fn cast_i2f32(value: i32) -> f32 {
+    #[allow(clippy::cast_precision_loss)]
+    (value as f32)
 }
