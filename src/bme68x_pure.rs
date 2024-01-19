@@ -2,6 +2,8 @@
 
 // FIXME: Get this moved into cargo.toml. IDK why it is nt working there
 #![allow(clippy::unreadable_literal)]
+use std::num::TryFromIntError;
+
 // TODO: More enumerations to replace constants
 use embedded_hal::i2c::I2c;
 
@@ -1574,7 +1576,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let var5 = var4 + (var3 * self.amb_temp as f32);
 
         // Casting to u8 is deliberate here. The original library also does it.
-        #[allow(clippy::cast_sign_loss)]
+        #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         let result = (3.4
             * ((var5
                 * (4.0 / (4.0 + self.calib.res_heat_range as f32))
@@ -1637,11 +1639,17 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 data.pressure = self.calc_pressure(adc_pres);
                 data.humidity = self.calc_humidity(adc_hum);
                 if self.variant_id == BME68X_VARIANT_GAS_HIGH {
-                    data.gas_resistance =
-                        calc_gas_resistance_high(adc_gas_res_high as u16, gas_range_h);
+                    data.gas_resistance = calc_gas_resistance_high(
+                        // Checked mathmatically. Should never go out of bounds
+                        u16::try_from(adc_gas_res_high)?,
+                        gas_range_h,
+                    );
                 } else {
-                    data.gas_resistance =
-                        self.calc_gas_resistance_low(adc_gas_res_low as u16, gas_range_l);
+                    data.gas_resistance = self.calc_gas_resistance_low(
+                        // Checked mathmatically. Should never go out of bounds
+                        u16::try_from(adc_gas_res_low)?,
+                        gas_range_l,
+                    );
                 }
                 break;
             }
@@ -1691,11 +1699,17 @@ impl<I2C: I2c> BME68xDev<I2C> {
             data[i].pressure = self.calc_pressure(adc_pres);
             data[i].humidity = self.calc_humidity(adc_hum);
             if self.variant_id == BME68X_VARIANT_GAS_HIGH {
-                data[i].gas_resistance =
-                    calc_gas_resistance_high(adc_gas_res_high as u16, gas_range_h);
+                data[i].gas_resistance = calc_gas_resistance_high(
+                    // Checked mathmatically. Should never go out of bounds
+                    u16::try_from(adc_gas_res_high)?,
+                    gas_range_h,
+                );
             } else {
-                data[i].gas_resistance =
-                    self.calc_gas_resistance_low(adc_gas_res_low as u16, gas_range_l);
+                data[i].gas_resistance = self.calc_gas_resistance_low(
+                    // Checked mathmatically. Should never go out of bounds
+                    u16::try_from(adc_gas_res_low)?,
+                    gas_range_l,
+                );
             }
         }
 
@@ -1822,12 +1836,17 @@ fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
     if dur >= 0x783 {
         heatdurval = 0xff; // Max Duration
     } else {
-        dur = ((u32::from(dur) * 1000) / 477) as u16;
+        // Will never go out of bounds, as `dur >= 0x783` is a check for a
+        // smaller number than what could make this exceed u16
+        dur = u16::try_from((u32::from(dur) * 1000) / 477).unwrap();
         while dur > 0x3F {
             dur >>= 2;
             factor += 1;
         }
-        heatdurval = (dur + (factor * 64)) as u8;
+
+        // Checked programatically. Does not look like this will ever go
+        // out of bounds.
+        heatdurval = u8::try_from(dur + (factor * 64)).unwrap();
     }
 
     heatdurval
@@ -1844,7 +1863,8 @@ fn calc_gas_wait(mut dur: u16) -> u8 {
             dur /= 4;
             factor += 1;
         }
-        (dur + (factor * 64)) as u8
+        // Programatically checked. Should not overflow
+        u8::try_from(dur + (factor * 64)).unwrap()
     }
 }
 
