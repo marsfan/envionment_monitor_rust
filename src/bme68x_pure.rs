@@ -1467,8 +1467,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// Returns
     /// The temperature as a float
     fn calc_temperature(&mut self, temp_adc: u32) -> f32 {
-        let par_t1_f32 = self.calib.par_t1 as f32;
-        let par_t3_f32 = self.calib.par_t3 as f32;
+        let par_t1_f32 = f32::from(self.calib.par_t1);
+        let par_t3_f32 = f32::from(self.calib.par_t3);
         let temp_f32 = temp_adc as f32;
 
         let var1 = ((temp_f32 / 16384.0) - (par_t1_f32 / 1024.0)) * (par_t1_f32);
@@ -1491,24 +1491,24 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// Pressure value as a float
     fn calc_pressure(&self, pres_adc: u32) -> f32 {
         let var1 = (self.calib.t_fine / 2.0) - 64000.0;
-        let var2 = var1 * var1 * (self.calib.par_p6 as f32 / 131072.0);
-        let var2 = var2 + (var1 * (self.calib.par_p5 as f32 * 2.0));
-        let var2 = (var2 / 4.0) + ((self.calib.par_p4 as f32) * 65536.0);
-        let var1 = (((self.calib.par_p3 as f32 * var1 * var1) / 16384.0)
-            + (self.calib.par_p2 as f32 * var1))
+        let var2 = var1 * var1 * (f32::from(self.calib.par_p6) / 131072.0);
+        let var2 = var2 + (var1 * (f32::from(self.calib.par_p5) * 2.0));
+        let var2 = (var2 / 4.0) + ((f32::from(self.calib.par_p4)) * 65536.0);
+        let var1 = (((f32::from(self.calib.par_p3) * var1 * var1) / 16384.0)
+            + (f32::from(self.calib.par_p2) * var1))
             / 524288.0;
-        let var1 = (1.0 + (var1 / 32768.0)) * (self.calib.par_p1 as f32);
+        let var1 = (1.0 + (var1 / 32768.0)) * (f32::from(self.calib.par_p1));
         let calc_pres = 1048576.0 - (pres_adc as f32);
 
         if var1 != 0.0 {
             let calc_pres = ((calc_pres - (var2 / 4096.0)) * 6250.0) / var1;
-            let var1 = ((self.calib.par_p9 as f32) * calc_pres * calc_pres) / 2147483648.0;
-            let var2 = calc_pres * ((self.calib.par_p8 as f32) / 32768.0);
+            let var1 = (f32::from(self.calib.par_p9) * calc_pres * calc_pres) / 2147483648.0;
+            let var2 = calc_pres * (f32::from(self.calib.par_p8) / 32768.0);
             let var3 = (calc_pres / 256.0)
                 * (calc_pres / 256.0)
                 * (calc_pres / 256.0)
-                * (self.calib.par_p10 as f32 / 131072.0);
-            calc_pres + (var1 + var2 + var3 + (self.calib.par_p7 as f32 * 128.0)) / 16.0
+                * (f32::from(self.calib.par_p10) / 131072.0);
+            calc_pres + (var1 + var2 + var3 + (f32::from(self.calib.par_p7) * 128.0)) / 16.0
         } else {
             0.0
         }
@@ -1521,14 +1521,15 @@ impl<I2C: I2c> BME68xDev<I2C> {
     fn calc_humidity(&self, hum_adc: u32) -> f32 {
         let temp_comp = (self.calib.t_fine) / 5120.0;
         let var1 = (hum_adc as f32)
-            - ((self.calib.par_h1 as f32 * 16.0) + ((self.calib.par_h3 as f32 / 2.0) * temp_comp));
+            - ((f32::from(self.calib.par_h1) * 16.0)
+                + ((f32::from(self.calib.par_h3) / 2.0) * temp_comp));
         let var2 = var1
-            * ((self.calib.par_h2 as f32 / 262144.0)
+            * ((f32::from(self.calib.par_h2) / 262144.0)
                 * (1.0
-                    + ((self.calib.par_h4 as f32 / 16384.0) * temp_comp)
-                    + ((self.calib.par_h5 as f32 / 1048576.0) * temp_comp * temp_comp)));
-        let var3 = self.calib.par_h6 as f32 / 16384.0;
-        let var4 = self.calib.par_h7 as f32 / 2097152.0;
+                    + ((f32::from(self.calib.par_h4) / 16384.0) * temp_comp)
+                    + ((f32::from(self.calib.par_h5) / 1048576.0) * temp_comp * temp_comp)));
+        let var3 = f32::from(self.calib.par_h6) / 16384.0;
+        let var4 = f32::from(self.calib.par_h7) / 2097152.0;
         let calc_hum = var2 + ((var3 + (var4 * temp_comp)) * var2 * var2);
 
         if calc_hum > 100.0 {
@@ -1546,7 +1547,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `gas_res_adc`: Raw ADC gas resistance value
     /// * `gas_range`: The gas range to use for the calculation
     fn calc_gas_resistance_low(&self, gas_res_adc: u16, gas_range: u8) -> f32 {
-        let gas_res_f = gas_res_adc as f32;
+        let gas_res_f = f32::from(gas_res_adc);
         let gas_range_f = (1 << gas_range) as f32;
         let lookup_k1_range = [
             0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, -0.8, 0.0, 0.0, -0.2, -0.5, 0.0, -1.0, 0.0, 0.0,
@@ -1555,7 +1556,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             0.0, 0.0, 0.0, 0.0, 0.1, 0.7, 0.0, -0.8, -0.1, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         ];
 
-        let var1 = 1340.0 + (5.0 * self.calib.range_sw_err as f32);
+        let var1 = 1340.0 + (5.0 * f32::from(self.calib.range_sw_err));
         let var2 = (var1) * (1.0 + lookup_k1_range[gas_range as usize] / 100.0);
         let var3 = 1.0 + (lookup_k2_range[gas_range as usize] / 100.0);
 
@@ -1567,20 +1568,20 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Arguments
     ///  * `temp`: The temperature
     fn calc_res_heat(&self, temp: u16) -> u8 {
-        let temp = if temp > 400 { 400.0 } else { temp as f32 };
+        let temp = if temp > 400 { 400.0 } else { f32::from(temp) };
 
-        let var1 = (self.calib.par_gh1 as f32 / (16.0)) + 49.0;
-        let var2 = ((self.calib.par_gh2 as f32 / (32768.0)) * (0.0005)) + 0.00235;
-        let var3 = self.calib.par_gh3 as f32 / (1024.0);
+        let var1 = (f32::from(self.calib.par_gh1) / (16.0)) + 49.0;
+        let var2 = ((f32::from(self.calib.par_gh2) / (32768.0)) * (0.0005)) + 0.00235;
+        let var3 = f32::from(self.calib.par_gh3) / (1024.0);
         let var4 = var1 * (1.0 + (var2 * temp));
-        let var5 = var4 + (var3 * self.amb_temp as f32);
+        let var5 = var4 + (var3 * f32::from(self.amb_temp));
 
         // Casting to u8 is deliberate here. The original library also does it.
         #[allow(clippy::cast_sign_loss, clippy::cast_possible_truncation)]
         let result = (3.4
             * ((var5
-                * (4.0 / (4.0 + self.calib.res_heat_range as f32))
-                * (1.0 / (1.0 + (self.calib.res_heat_val as f32 * 0.002))))
+                * (4.0 / (4.0 + f32::from(self.calib.res_heat_range)))
+                * (1.0 / (1.0 + (f32::from(self.calib.res_heat_val) * 0.002))))
                 - 25.0)) as u8;
         result
     }
