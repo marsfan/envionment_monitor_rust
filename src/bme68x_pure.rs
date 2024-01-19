@@ -1550,7 +1550,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         1.0 / (var3 * (0.000000125) * gas_range_f * (((gas_res_f - 512.0) / var2) + 1.0))
     }
 
-    /// Calculate the heater resistance to a float
+    /// Calculate the heater resistance using float
     ///
     /// # Arguments
     ///  * `temp`: The temperature
@@ -1562,10 +1562,15 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let var3 = self.calib.par_gh3 as f32 / (1024.0);
         let var4 = var1 * (1.0 + (var2 * temp));
         let var5 = var4 + (var3 * self.amb_temp as f32);
-        (3.4 * ((var5
-            * (4.0 / (4.0 + self.calib.res_heat_range as f32))
-            * (1.0 / (1.0 + (self.calib.res_heat_val as f32 * 0.002))))
-            - 25.0)) as u8
+
+        // Casting to u8 is deliberate here. The original library also does it.
+        #[allow(clippy::cast_sign_loss)]
+        let result = (3.4
+            * ((var5
+                * (4.0 / (4.0 + self.calib.res_heat_range as f32))
+                * (1.0 / (1.0 + (self.calib.res_heat_val as f32 * 0.002))))
+                - 25.0)) as u8;
+        result
     }
 
     /// Read a single data from teh senssor
@@ -1886,6 +1891,7 @@ fn get_bits(reg_data: u8, bitmask: u8, bitpos: u8) -> u8 {
 /// # Errors
 /// Returns an error if analysis fails
 fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xError> {
+    let mut cent_res = 0.0;
     if (data[0].temperature < BME68X_MIN_TEMPERATURE)
         || (data[0].temperature > BME68X_MAX_TEMPERATURE)
     {
@@ -1906,11 +1912,11 @@ fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xE
     }
 
     if n_meas >= 6 {
-        let cent_res = ((5.0 * (data[3].gas_resistance + data[5].gas_resistance))
-            / (2.0 * data[4].gas_resistance)) as u32;
-        if cent_res < 6 {
-            return Err(BME68xError::SelfTest);
-        }
+        cent_res = (5.0 * (data[3].gas_resistance + data[5].gas_resistance))
+            / (2.0 * data[4].gas_resistance);
+    }
+    if cent_res < 6.0 {
+        return Err(BME68xError::SelfTest);
     }
     Ok(())
 }
