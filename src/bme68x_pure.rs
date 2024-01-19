@@ -1048,7 +1048,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Arguments
     /// * `op_mode`: The operation mode of the sensor
     /// * `conf`: The sensor configuration.
-    pub fn get_meas_dur(&self, op_mode: BME68xOpMode, conf: &BME68xConf) -> i32 {
+    pub fn get_meas_dur(&self, op_mode: BME68xOpMode, conf: &BME68xConf) -> u32 {
         let mut meas_dur;
         let mut meas_cycles;
         let os_to_meas_cycles = [0, 1, 2, 4, 8, 16];

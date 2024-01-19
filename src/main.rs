@@ -35,7 +35,7 @@ fn test_forced<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     for _ in 0..5 {
         bme.set_op_mode(BME68xOpMode::ForcedMode).unwrap();
         let del_period = bme.get_meas_dur(BME68xOpMode::ForcedMode, &bme_conf);
-        FreeRtos::delay_us(del_period as u32);
+        FreeRtos::delay_us(del_period);
         let (data, _) = bme.get_data(BME68xOpMode::ForcedMode).unwrap();
         for (sample, entry) in data.iter().enumerate() {
             log::info!(
@@ -82,9 +82,9 @@ fn test_parallel<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     let mut sample_count = 0;
     while sample_count <= 50 {
         let del_period = bme.get_meas_dur(BME68xOpMode::ParallelMode, &bme_conf)
-            + (i32::from(bme_heater_conf.shared_heatr_dur) * 1000);
+            + (u32::from(bme_heater_conf.shared_heatr_dur) * 1000);
 
-        FreeRtos::delay_us(del_period as u32);
+        FreeRtos::delay_us(del_period);
 
         let read_result = bme.get_data(BME68xOpMode::ParallelMode);
         if read_result.is_err() {
@@ -130,8 +130,8 @@ fn test_sequential<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     let mut sample_count = 0;
     while sample_count <= 300 {
         let del_period = bme.get_meas_dur(BME68xOpMode::SequentialMode, &bme_conf)
-            + (i32::from(bme_heater_conf.shared_heatr_dur) * 1000);
-        FreeRtos::delay_us(del_period as u32);
+            + (u32::from(bme_heater_conf.shared_heatr_dur) * 1000);
+        FreeRtos::delay_us(del_period);
 
         let read_result = bme.get_data(BME68xOpMode::SequentialMode);
         if read_result.is_err() {
