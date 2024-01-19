@@ -333,39 +333,40 @@ pub enum BME68xAddr {
 }
 
 /// Chip Error codes
-#[repr(i8)]
+// #[repr(i8)]
 #[derive(Debug, Clone, Copy)]
 pub enum BME68xError {
     /// Success
-    Ok = 0,
+    Ok,
 
     /// Null Pointer Passed
-    NullPtr = -1,
+    NullPtr,
 
     /// Communication Failure
-    ComFail = -2,
+    ComFail,
 
     /// Sensor Not Found
-    DevNotFound = -3,
+    DevNotFound,
 
     /// Incorrect Length Parameter
-    InvalidLength = -4,
+    InvalidLength,
 
     /// Self Test Error
-    SelfTest = -5,
+    SelfTest,
 
     /// Casting Error. Should never happen, but putting it here so we
     /// have a recoverable error if it magically does happen
-    CastError = -6,
+    CastError,
 
+    // These are warnings, Can technically proceed if this occur
     /// Define a valid operation mode
-    DefineOpMode = 1,
+    DefineOpMode,
 
     /// No New Data was found
-    NoNewData = 2,
+    NoNewData,
 
     /// Define shared heating duration
-    DefineShdHeatrDur = 3,
+    DefineShdHeatrDur,
 }
 
 impl From<TryFromIntError> for BME68xError {
@@ -540,14 +541,13 @@ impl From<u8> for BME68xODR {
 // TODO: Conditional FPU support?
 
 /// Enumeration of possible interfaces for the sensor.
-#[repr(u8)]
 #[derive(Clone, Copy)]
 pub enum BME68xIntf {
     /// SPI Interface
-    SPIIntf = 0,
+    SPIIntf,
 
     /// I2C Interface
-    I2CIntf = 1,
+    I2CIntf,
 }
 
 /// BME68X Operating Modes
