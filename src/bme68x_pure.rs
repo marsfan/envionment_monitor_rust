@@ -1,6 +1,8 @@
 //! BME68X Driver Implementation in pure rust.
-// TODO: More enumerations to replace constants
 
+// FIXME: Get this moved into cargo.toml. IDK why it is nt working there
+#![allow(clippy::unreadable_literal)]
+// TODO: More enumerations to replace constants
 use embedded_hal::i2c::I2c;
 
 // Other stuff
@@ -572,7 +574,7 @@ impl From<u8> for BME68xOpMode {
 }
 
 /// Sensor Field Data Structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct BME68xData {
     /// Sensor Status (new_data, gasm_valid, heat_stab)
     pub status: u8,
@@ -607,6 +609,7 @@ pub struct BME68xData {
 
 impl BME68xData {
     /// Create a new instance with all members set to 0
+    #[must_use]
     pub fn new() -> Self {
         BME68xData {
             status: 0,
@@ -764,7 +767,7 @@ pub struct BME68xConf {
 }
 
 /// Gas Heater Configuration
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct BME68xHeatrConf {
     /// Enable gas measurement
     pub enable: u8,
@@ -792,6 +795,7 @@ pub struct BME68xHeatrConf {
 // TODO: constructors for each mode
 impl BME68xHeatrConf {
     /// Create a new empty instance.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             enable: 0,
@@ -888,11 +892,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     /// Returns an error if the initialzation is unsuccessful.
-    ///
-    /// # Panics
-    /// Can panic if soft-resetting of the chip fails.
     pub fn init(&mut self) -> Result<(), BME68xError> {
-        self.soft_reset().unwrap();
+        self.soft_reset()?;
 
         let mut data = [0; 1];
         self.get_regs(BME68xRegister::ChipId.into(), &mut data)?;
@@ -962,7 +963,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         // FIXME: Proper SPI support
         if matches!(self.intf, BME68xIntf::SPIIntf) {
             self.set_mem_page(reg_addr)?;
-            reg_addr = reg_addr | BME68X_SPI_RD_MSK;
+            reg_addr |= BME68X_SPI_RD_MSK;
         }
         let result = self.i2c.write_read(self.address.into(), &[reg_addr], data);
 
@@ -1109,7 +1110,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                     }
                 }
             }
-            _ => return Err(BME68xError::DefineOpMode),
+            BME68xOpMode::SleepMode => return Err(BME68xError::DefineOpMode),
         }
         if new_fields == 0 {
             Err(BME68xError::NoNewData)
@@ -1141,7 +1142,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             data_array[4],
             BME68X_FILTER_MSK,
             BME68X_FILTER_POS,
-            conf.filter.into(),
+            conf.filter,
         );
         data_array[3] = set_bits(
             data_array[3],
@@ -1255,14 +1256,15 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         // FIXME: Pass in profile len conf, like in the original API.
         self.get_regs(BME68xRegister::ResHeat0.into(), &mut data)?;
-        for i in 0..10 {
-            conf.heatr_temp_prof[i] = data[i].into();
+        for (index, value) in data.into_iter().enumerate() {
+            conf.heatr_temp_prof[index] = value.into();
         }
 
         self.get_regs(BME68xRegister::GasWait0.into(), &mut data)?;
+
         // FIXME: Pass in profile len conf, like in the original API.
-        for i in 0..10 {
-            conf.heatr_dur_prof[i] = data[i].into();
+        for (index, value) in data.into_iter().enumerate() {
+            conf.heatr_dur_prof[index] = value.into();
         }
         Ok(conf)
     }
@@ -1584,8 +1586,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
             let adc_temp =
                 (u32::from(buff[5]) * 4096) | (u32::from(buff[6]) * 16) | (u32::from(buff[7]) / 16);
             let adc_hum = (u32::from(buff[8]) * 256) | u32::from(buff[9]);
-            let adc_gas_res_low = u32::from(buff[13]) * 4 | ((u32::from(buff[14])) / 64);
-            let adc_gas_res_high = u32::from(buff[15]) * 4 | ((u32::from(buff[16])) / 64);
+            let adc_gas_res_low = (u32::from(buff[13]) * 4) | ((u32::from(buff[14])) / 64);
+            let adc_gas_res_high = (u32::from(buff[15]) * 4) | ((u32::from(buff[16])) / 64);
             let gas_range_l = buff[14] & BME68X_GAS_RANGE_MSK;
             let gas_range_h = buff[16] & BME68X_GAS_RANGE_MSK;
             if self.variant_id == BME68X_VARIANT_GAS_HIGH {
@@ -1655,9 +1657,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 | (u32::from(buff[off + 7]) / 16);
             let adc_hum = (u32::from(buff[off + 8]) * 256) | u32::from(buff[off + 9]);
             let adc_gas_res_low =
-                u32::from(buff[off + 13]) * 4 | ((u32::from(buff[off + 14])) / 64);
+                (u32::from(buff[off + 13]) * 4) | ((u32::from(buff[off + 14])) / 64);
             let adc_gas_res_high =
-                u32::from(buff[off + 15]) * 4 | ((u32::from(buff[off + 16])) / 64);
+                (u32::from(buff[off + 15]) * 4) | ((u32::from(buff[off + 16])) / 64);
             let gas_range_l = buff[off + 14] & BME68X_GAS_RANGE_MSK;
             let gas_range_h = buff[off + 16] & BME68X_GAS_RANGE_MSK;
             if self.variant_id == BME68X_VARIANT_GAS_HIGH {
@@ -1853,6 +1855,7 @@ fn sort_sensor_data(low_index: usize, high_index: usize, field: &mut [BME68xData
 /// * `msb`: The most significant bit
 /// * `lsb`: The least significant bit
 // FIXME: Convert this to a macro.
+#[allow(clippy::similar_names)]
 fn concat_bytes(msb: u8, lsb: u8) -> u16 {
     (u16::from(msb) << 8) | u16::from(lsb)
 }
