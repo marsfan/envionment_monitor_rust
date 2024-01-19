@@ -894,7 +894,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     pub fn init(&mut self) -> Result<(), BME68xError> {
         self.soft_reset().unwrap();
 
-        self.chip_id = self.get_regs(BME68xRegister::ChipId.into(), 1)?[0];
+        let mut data = [0; 1];
+        self.get_regs(BME68xRegister::ChipId.into(), &mut data)?;
+        self.chip_id = data[0];
         if self.chip_id == BME68X_CHIP_ID {
             self.read_variant_id()?;
             self.get_calib_data()
@@ -931,7 +933,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 tmp_buff[(2 * index) + 1] = reg_data[index];
             }
             let result = self.i2c.write(self.address.into(), &tmp_buff[0..(2 * len)]);
-            if let Ok(_) = result {
+            if result.is_ok() {
                 self.intf_rslt = BME68xError::Ok;
                 Ok(())
             } else {
@@ -947,7 +949,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Arguments
     /// * `reg_addr`: Register addresses to read data from
-    /// * `len`: Number of bytes of data to read
+    /// * `data`: The buffer to place the read data in.
     ///
     /// # Returns
     /// Data read from the registers
@@ -955,20 +957,18 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Errors
     /// Errors if failing to read from the registers.
     // TODO: Remove the len argument?
-    pub fn get_regs(&mut self, mut reg_addr: u8, len: usize) -> Result<Vec<u8>, BME68xError> {
+    // FIXME: Second version for reading a single register that does not need the "data" buf
+    pub fn get_regs(&mut self, mut reg_addr: u8, data: &mut [u8]) -> Result<(), BME68xError> {
         // FIXME: Proper SPI support
         if matches!(self.intf, BME68xIntf::SPIIntf) {
             self.set_mem_page(reg_addr)?;
             reg_addr = reg_addr | BME68X_SPI_RD_MSK;
         }
-        let mut read_buffer = vec![0; len];
-        let result = self
-            .i2c
-            .write_read(self.address.into(), &[reg_addr], &mut read_buffer);
+        let result = self.i2c.write_read(self.address.into(), &[reg_addr], data);
 
-        if let Ok(_) = result {
+        if result.is_ok() {
             self.intf_rslt = BME68xError::Ok;
-            Ok(read_buffer)
+            Ok(())
         } else {
             self.intf_rslt = BME68xError::ComFail;
             Err(BME68xError::ComFail)
@@ -1006,7 +1006,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     pub fn set_op_mode(&mut self, op_mode: BME68xOpMode) -> Result<(), BME68xError> {
         let mut tmp_pow_mode;
         loop {
-            tmp_pow_mode = self.get_regs(BME68xRegister::CtrlMeas.into(), 1)?[0];
+            let mut data = [0; 1];
+            self.get_regs(BME68xRegister::CtrlMeas.into(), &mut data)?;
+            tmp_pow_mode = data[0];
             let pow_mode: BME68xOpMode = (tmp_pow_mode & BME68X_MODE_MSK).into();
 
             if !matches!(pow_mode, BME68xOpMode::SleepMode) {
@@ -1034,7 +1036,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Errors
     /// Returns an error if getting the operation mode fails
     pub fn get_op_mode(&mut self) -> Result<BME68xOpMode, BME68xError> {
-        let output = self.get_regs(BME68xRegister::CtrlMeas.into(), 1)?[0];
+        let mut data = [0; 1];
+        self.get_regs(BME68xRegister::CtrlMeas.into(), &mut data)?;
+        let output = data[0];
         Ok(BME68xOpMode::from(output & BME68X_MODE_MSK))
     }
 
@@ -1131,10 +1135,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         // Configure only in sleep mode
         self.set_op_mode(BME68xOpMode::SleepMode)?;
 
-        let curr_config = self.get_regs(BME68xRegister::CtrlGas1.into(), BME68X_LEN_CONFIG)?;
-        for i in 0..BME68X_LEN_CONFIG {
-            data_array[i] = curr_config[i];
-        }
+        self.get_regs(BME68xRegister::CtrlGas1.into(), &mut data_array)?;
         self.info_msg = BME68xError::Ok;
         data_array[4] = set_bits(
             data_array[4],
@@ -1174,7 +1175,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Errors
     /// Returns an error if getting the configuration failed.
     pub fn get_config(&mut self) -> Result<BME68xConf, BME68xError> {
-        let data_array = self.get_regs(BME68xRegister::CtrlGas1.into(), 5)?;
+        let mut data_array = [0; 5];
+        self.get_regs(BME68xRegister::CtrlGas1.into(), &mut data_array)?;
         Ok(BME68xConf {
             os_hum: BME68xOs::from(data_array[1] & BME68X_OSH_MSK),
             filter: get_bits(data_array[4], BME68X_FILTER_MSK, BME68X_FILTER_POS),
@@ -1211,10 +1213,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
         ];
 
         let nb_conv = self.set_conf(conf, op_mode)?;
-        let gas_regs = self.get_regs(BME68xRegister::CtrlGas0.into(), 2)?;
-        for i in 0..2 {
-            ctrl_gas_data[i] = gas_regs[i];
-        }
+        self.get_regs(BME68xRegister::CtrlGas0.into(), &mut ctrl_gas_data)?;
+
         if conf.enable == BME68X_ENABLE {
             hctrl = BME68X_ENABLE_HEATER;
             if self.variant_id == BME68X_VARIANT_GAS_HIGH {
@@ -1251,16 +1251,18 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let mut conf = BME68xHeatrConf::new();
         /* FIXME: Add conversion to deg C and ms and add the other parameters. This is copied from the original BME68x.c file  */
 
-        let temp_reg_data = self.get_regs(BME68xRegister::ResHeat0.into(), 10)?;
+        let mut data = [0; 10];
+
         // FIXME: Pass in profile len conf, like in the original API.
+        self.get_regs(BME68xRegister::ResHeat0.into(), &mut data)?;
         for i in 0..10 {
-            conf.heatr_temp_prof[i] = temp_reg_data[i].into();
+            conf.heatr_temp_prof[i] = data[i].into();
         }
 
-        let time_reg_data = self.get_regs(BME68xRegister::GasWait0.into(), 10)?;
+        self.get_regs(BME68xRegister::GasWait0.into(), &mut data)?;
         // FIXME: Pass in profile len conf, like in the original API.
         for i in 0..10 {
-            conf.heatr_dur_prof[i] = time_reg_data[i].into();
+            conf.heatr_dur_prof[i] = data[i].into();
         }
         Ok(conf)
     }
@@ -1342,22 +1344,23 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let mut coeff_array = [0; BME68X_LEN_COEFF_ALL];
 
         // Read first portion of the coefficent array.
-        let result = self.get_regs(BME68xRegister::Coeff1.into(), BME68X_LEN_COEFF1)?;
-        for i in 0..BME68X_LEN_COEFF1 {
-            coeff_array[i] = result[i];
-        }
+        self.get_regs(
+            BME68xRegister::Coeff1.into(),
+            &mut coeff_array[0..BME68X_LEN_COEFF1],
+        )?;
 
         // Read second chunk of coefficents.
-        let result = self.get_regs(BME68xRegister::Coeff2.into(), BME68X_LEN_COEFF2)?;
-        for i in 0..BME68X_LEN_COEFF2 {
-            coeff_array[i + BME68X_LEN_COEFF1] = result[i];
-        }
+        self.get_regs(
+            BME68xRegister::Coeff2.into(),
+            &mut coeff_array[BME68X_LEN_COEFF1..(BME68X_LEN_COEFF1 + BME68X_LEN_COEFF2)],
+        )?;
 
         // Read the third chunk of coefficents
-        let result = self.get_regs(BME68xRegister::Coeff3.into(), BME68X_LEN_COEFF3)?;
-        for i in 0..BME68X_LEN_COEFF3 {
-            coeff_array[i + BME68X_LEN_COEFF1 + BME68X_LEN_COEFF2] = result[i];
-        }
+        self.get_regs(
+            BME68xRegister::Coeff3.into(),
+            &mut coeff_array[(BME68X_LEN_COEFF1 + BME68X_LEN_COEFF2)
+                ..(BME68X_LEN_COEFF1 + BME68X_LEN_COEFF2 + BME68X_LEN_COEFF3)],
+        )?;
 
         // Copy data over
         /* Temperature related coefficients */
@@ -1436,7 +1439,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Errors
     /// Errors if reading the register failed
     fn read_variant_id(&mut self) -> Result<(), BME68xError> {
-        let data = self.get_regs(BME68xRegister::VariantId.into(), 1)?;
+        let mut data = [0; 1];
+        self.get_regs(BME68xRegister::VariantId.into(), &mut data)?;
         self.variant_id = u32::from(data[0]);
         Ok(())
     }
@@ -1566,13 +1570,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
     fn read_field_data(&mut self, index: u8, data: &mut BME68xData) -> Result<(), BME68xError> {
         let mut tries = 5;
         while tries > 0 {
+            let mut buff = [0; BME68X_LEN_FIELD];
             let reg_addr: u8 =
                 (u8::from(BME68xRegister::Field0)) + (index * BME68X_LEN_FIELD_OFFSET);
-            let regs = self.get_regs(reg_addr, BME68X_LEN_FIELD)?;
-            let mut buff = [0; BME68X_LEN_FIELD];
-            for i in 0..BME68X_LEN_FIELD {
-                buff[i] = regs[i];
-            }
+            self.get_regs(reg_addr, &mut buff)?;
 
             data.status = buff[0] & BME68X_NEW_DATA_MSK;
             data.gas_index = buff[0] & BME68X_GAS_INDEX_MSK;
@@ -1596,12 +1597,25 @@ impl<I2C: I2c> BME68xDev<I2C> {
             }
 
             if (data.status & BME68X_NEW_DATA_MSK) != 0 {
-                data.res_heat =
-                    self.get_regs((u8::from(BME68xRegister::ResHeat0)) + data.gas_index, 1)?[0];
-                data.idac =
-                    self.get_regs((u8::from(BME68xRegister::IdacHeat0)) + data.gas_index, 1)?[0];
-                data.gas_wait =
-                    self.get_regs((u8::from(BME68xRegister::GasWait0)) + data.gas_index, 1)?[0];
+                let mut reg = [0; 1];
+                self.get_regs(
+                    (u8::from(BME68xRegister::ResHeat0)) + data.gas_index,
+                    &mut reg,
+                )?;
+                data.res_heat = reg[0];
+
+                self.get_regs(
+                    (u8::from(BME68xRegister::IdacHeat0)) + data.gas_index,
+                    &mut reg,
+                )?;
+                data.idac = reg[0];
+
+                self.get_regs(
+                    (u8::from(BME68xRegister::GasWait0)) + data.gas_index,
+                    &mut reg,
+                )?;
+                data.gas_wait = reg[0];
+
                 data.temperature = self.calc_temperature(adc_temp);
                 data.pressure = self.calc_pressure(adc_pres);
                 data.humidity = self.calc_humidity(adc_hum);
@@ -1624,15 +1638,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     fn read_all_field_data(&mut self, data: &mut [BME68xData; 3]) -> Result<(), BME68xError> {
         let mut buff = [0; BME68X_LEN_FIELD * 3];
         let mut set_val = [0; 30];
-        let regs = self.get_regs(BME68xRegister::Field0.into(), BME68X_LEN_FIELD * 3)?;
-        for i in 0..(BME68X_LEN_FIELD * 3) {
-            buff[i] = regs[i];
-        }
+        self.get_regs(BME68xRegister::Field0.into(), &mut buff)?;
 
-        let regs = self.get_regs(BME68xRegister::IdacHeat0.into(), 30)?;
-        for i in 0..30 {
-            set_val[i] = regs[i];
-        }
+        self.get_regs(BME68xRegister::IdacHeat0.into(), &mut set_val)?;
 
         for i in 0..3 {
             let off = i * BME68X_LEN_FIELD;
@@ -1692,13 +1700,13 @@ impl<I2C: I2c> BME68xDev<I2C> {
             let result = self
                 .i2c
                 .write_read(self.address.into(), &write_buffer, &mut read_buffer);
-            if let Ok(_) = result {
+            if result.is_ok() {
                 let reg = read_buffer[0] & (!BME68X_MEM_PAGE_MSK);
                 let reg = reg | (self.mem_page & BME68X_MEM_PAGE_MSK);
 
                 let write_buffer = [u8::from(BME68xRegister::MemPage) & BME68X_SPI_WR_MSK, reg];
                 let result = self.i2c.write(self.address.into(), &write_buffer);
-                if let Ok(_) = result {
+                if result.is_ok() {
                     self.intf_rslt = BME68xError::Ok;
                     Ok(())
                 } else {
@@ -1722,7 +1730,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             &[u8::from(BME68xRegister::MemPage) | BME68X_SPI_RD_MSK],
             &mut read_buffer,
         );
-        if let Ok(_) = result {
+        if result.is_ok() {
             self.mem_page = read_buffer[0] & BME68X_MEM_PAGE_MSK;
             Ok(())
         } else {
@@ -1780,7 +1788,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                     self.set_regs(&[BME68xRegister::ShdHeatrDur.into()], &[shared_dur], 1)?;
                 }
             }
-            _ => return Err(BME68xError::DefineOpMode),
+            BME68xOpMode::SleepMode => return Err(BME68xError::DefineOpMode),
         }
 
         self.set_regs(&rh_reg_addr, &rh_reg_data, write_len.into())?;
@@ -1799,7 +1807,7 @@ fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
     } else {
         dur = ((u32::from(dur) * 1000) / 477) as u16;
         while dur > 0x3F {
-            dur = dur >> 2;
+            dur >>= 2;
             factor += 1;
         }
         heatdurval = (dur + (factor * 64)) as u8;
@@ -1816,23 +1824,11 @@ fn calc_gas_wait(mut dur: u16) -> u8 {
         0xff // Max Duration;
     } else {
         while dur > 0x3f {
-            dur = dur / 4;
+            dur /= 4;
             factor += 1;
         }
         (dur + (factor * 64)) as u8
     }
-}
-
-/// Swap the contents of two fields.
-///
-/// # Arguments
-/// * `index1`: Index of the first of the fields to swap.
-/// * `index2`: Index of the second of the fields to swap.
-/// * `field`: Mutable array of the fields to swap.
-fn swap_fields(index1: usize, index2: usize, field: &mut [BME68xData]) {
-    let temp = field[index1];
-    field[index1] = field[index2];
-    field[index2] = temp;
 }
 
 /// Sort the sensor data
@@ -1844,10 +1840,10 @@ fn sort_sensor_data(low_index: usize, high_index: usize, field: &mut [BME68xData
     {
         let diff = meas_index2 - meas_index1;
         if ((diff > -3) && (diff < 0)) || (diff > 2) {
-            swap_fields(low_index, high_index, field);
+            field.swap(low_index, high_index);
         }
     } else if (field[high_index].status & BME68X_NEW_DATA_MSK) != 0 {
-        swap_fields(low_index, high_index, field);
+        field.swap(low_index, high_index);
     }
 }
 
@@ -1900,11 +1896,12 @@ fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xE
     if (data[0].humidity < BME68X_MIN_HUMIDITY) || (data[0].humidity > BME68X_MAX_HUMIDITY) {
         return Err(BME68xError::SelfTest);
     }
-    for i in 0..n_meas {
-        if (data[i].status & BME68X_GASM_VALID_MSK) == 0 {
+    for entry in data {
+        if (entry.status & BME68X_GASM_VALID_MSK) == 0 {
             return Err(BME68xError::SelfTest);
         }
     }
+
     if n_meas >= 6 {
         let cent_res = ((5.0 * (data[3].gas_resistance + data[5].gas_resistance))
             / (2.0 * data[4].gas_resistance)) as u32;
