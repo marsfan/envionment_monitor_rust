@@ -1383,40 +1383,40 @@ impl<I2C: I2c> BME68xDev<I2C> {
             coeff_array[BME68X_IDX_T1_MSB],
             coeff_array[BME68X_IDX_T1_LSB],
         );
-        self.calib.par_t2 = concat_bytes(
+        self.calib.par_t2 = wrap_u2i16(concat_bytes(
             coeff_array[BME68X_IDX_T2_MSB],
             coeff_array[BME68X_IDX_T2_LSB],
-        ) as i16;
-        self.calib.par_t3 = coeff_array[BME68X_IDX_T3] as i8;
+        ));
+        self.calib.par_t3 = wrap_u2i8(coeff_array[BME68X_IDX_T3]);
 
         /* Pressure related coefficients */
         self.calib.par_p1 = concat_bytes(
             coeff_array[BME68X_IDX_P1_MSB],
             coeff_array[BME68X_IDX_P1_LSB],
         );
-        self.calib.par_p2 = (concat_bytes(
+        self.calib.par_p2 = wrap_u2i16(concat_bytes(
             coeff_array[BME68X_IDX_P2_MSB],
             coeff_array[BME68X_IDX_P2_LSB],
-        )) as i16;
-        self.calib.par_p3 = coeff_array[BME68X_IDX_P3] as i8;
-        self.calib.par_p4 = (concat_bytes(
+        ));
+        self.calib.par_p3 = wrap_u2i8(coeff_array[BME68X_IDX_P3]);
+        self.calib.par_p4 = wrap_u2i16(concat_bytes(
             coeff_array[BME68X_IDX_P4_MSB],
             coeff_array[BME68X_IDX_P4_LSB],
-        )) as i16;
-        self.calib.par_p5 = (concat_bytes(
+        ));
+        self.calib.par_p5 = wrap_u2i16(concat_bytes(
             coeff_array[BME68X_IDX_P5_MSB],
             coeff_array[BME68X_IDX_P5_LSB],
-        )) as i16;
-        self.calib.par_p6 = (coeff_array[BME68X_IDX_P6]) as i8;
-        self.calib.par_p7 = (coeff_array[BME68X_IDX_P7]) as i8;
-        self.calib.par_p8 = (concat_bytes(
+        ));
+        self.calib.par_p6 = wrap_u2i8(coeff_array[BME68X_IDX_P6]);
+        self.calib.par_p7 = wrap_u2i8(coeff_array[BME68X_IDX_P7]);
+        self.calib.par_p8 = wrap_u2i16(concat_bytes(
             coeff_array[BME68X_IDX_P8_MSB],
             coeff_array[BME68X_IDX_P8_LSB],
-        )) as i16;
-        self.calib.par_p9 = (concat_bytes(
+        ));
+        self.calib.par_p9 = wrap_u2i16(concat_bytes(
             coeff_array[BME68X_IDX_P9_MSB],
             coeff_array[BME68X_IDX_P9_LSB],
-        )) as i16;
+        ));
         self.calib.par_p10 = coeff_array[BME68X_IDX_P10];
 
         /* Humidity related coefficients */
@@ -1424,26 +1424,26 @@ impl<I2C: I2c> BME68xDev<I2C> {
             | (u16::from(coeff_array[BME68X_IDX_H1_LSB]) & BME68X_BIT_H1_DATA_MSK);
         self.calib.par_h2 = (u16::from(coeff_array[BME68X_IDX_H2_MSB]) << 4)
             | (u16::from(coeff_array[BME68X_IDX_H2_LSB]) >> 4);
-        self.calib.par_h3 = coeff_array[BME68X_IDX_H3] as i8;
-        self.calib.par_h4 = coeff_array[BME68X_IDX_H4] as i8;
-        self.calib.par_h5 = coeff_array[BME68X_IDX_H5] as i8;
+        self.calib.par_h3 = wrap_u2i8(coeff_array[BME68X_IDX_H3]);
+        self.calib.par_h4 = wrap_u2i8(coeff_array[BME68X_IDX_H4]);
+        self.calib.par_h5 = wrap_u2i8(coeff_array[BME68X_IDX_H5]);
         self.calib.par_h6 = coeff_array[BME68X_IDX_H6];
-        self.calib.par_h7 = coeff_array[BME68X_IDX_H7] as i8;
+        self.calib.par_h7 = wrap_u2i8(coeff_array[BME68X_IDX_H7]);
 
         /* Gas heater related coefficients */
-        self.calib.par_gh1 = coeff_array[BME68X_IDX_GH1] as i8;
-        self.calib.par_gh2 = (concat_bytes(
+        self.calib.par_gh1 = wrap_u2i8(coeff_array[BME68X_IDX_GH1]);
+        self.calib.par_gh2 = wrap_u2i16(concat_bytes(
             coeff_array[BME68X_IDX_GH2_MSB],
             coeff_array[BME68X_IDX_GH2_LSB],
-        )) as i16;
-        self.calib.par_gh3 = coeff_array[BME68X_IDX_GH3] as i8;
+        ));
+        self.calib.par_gh3 = wrap_u2i8(coeff_array[BME68X_IDX_GH3]);
 
         /* Other coefficients */
         self.calib.res_heat_range =
             (coeff_array[BME68X_IDX_RES_HEAT_RANGE] & BME68X_RHRANGE_MSK) / 16;
-        self.calib.res_heat_val = coeff_array[BME68X_IDX_RES_HEAT_VAL] as i8;
+        self.calib.res_heat_val = wrap_u2i8(coeff_array[BME68X_IDX_RES_HEAT_VAL]);
         self.calib.range_sw_err =
-            ((coeff_array[BME68X_IDX_RANGE_SW_ERR] & BME68X_RSERROR_MSK) as i8) / 16;
+            (wrap_u2i8(coeff_array[BME68X_IDX_RANGE_SW_ERR] & BME68X_RSERROR_MSK)) / 16;
 
         Ok(())
     }
@@ -1963,4 +1963,38 @@ fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
     let var2 = var2 * 3;
     let var2 = 4096 + var2;
     1000000.0 * var1 as f32 / var2 as f32
+}
+
+/// Convert a u8 to an i8, allowing wrapping.
+///
+/// This exists to reduce the number of clippy errors in this file,
+/// as this happens fairly frequently. If this function is used, it
+/// indicates that the specific cast was checked and wrapping is intended.
+///
+/// # Arguments
+/// * `value`: The value to convert
+///
+/// # Returns
+/// The converted value
+// TODO: Turn into a macro?
+fn wrap_u2i8(value: u8) -> i8 {
+    #[allow(clippy::cast_possible_wrap)]
+    (value as i8)
+}
+
+/// Convert a u16 to an i16, allowing wrapping.
+///
+/// This exists to reduce the number of clippy errors in this file,
+/// as this happens fairly frequently. If this function is used, it
+/// indicates that the specific cast was checked and wrapping is intended.
+///
+/// # Arguments
+/// * `value`: The value to convert
+///
+/// # Returns
+/// The converted value
+// TODO: Turn into a macro?
+fn wrap_u2i16(value: u16) -> i16 {
+    #[allow(clippy::cast_possible_wrap)]
+    (value as i16)
 }
