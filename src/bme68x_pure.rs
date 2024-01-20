@@ -1103,12 +1103,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `op_mode`: The operation mode of the sensor
     ///
     /// # Returns
-    /// Tuple wheter the firsst element is the sensor data, and the second is the
+    /// Tuple wheter the first element is the sensor data, and the second is the
     /// number of read elements
     ///
     /// # Errors
-    // TODO: Remove the number of elements?
-    // FIXME: Make n_fields a usize
     pub fn get_data(
         &mut self,
         op_mode: BME68xOpMode,
