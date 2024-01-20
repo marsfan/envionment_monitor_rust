@@ -21,24 +21,18 @@ fn test_forced<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     };
 
     bme.set_config(&bme_conf).unwrap();
-    bme.set_heatr_conf_forced(300, 100).unwrap();
 
     for _ in 0..5 {
-        bme.set_op_mode(BME68xOpMode::ForcedMode).unwrap();
-        let del_period = bme.get_meas_dur(BME68xOpMode::ForcedMode, &bme_conf);
-        FreeRtos::delay_us(del_period);
-        let (data, _) = bme.get_data(BME68xOpMode::ForcedMode).unwrap();
-        for (sample, entry) in data.iter().enumerate() {
-            log::info!(
-                "sample: {}, temp: {}, pres: {}, hum: {}, gas: {}, status: {}",
-                sample,
-                entry.temperature,
-                entry.pressure,
-                entry.humidity,
-                entry.gas_resistance,
-                entry.status,
-            );
-        }
+        let data = bme.forced_measurent(300, 100).unwrap();
+
+        log::info!(
+            "temp: {}, pres: {}, hum: {}, gas: {}, status: {}",
+            data.temperature,
+            data.pressure,
+            data.humidity,
+            data.gas_resistance,
+            data.status,
+        );
 
         FreeRtos::delay_ms(1000);
     }

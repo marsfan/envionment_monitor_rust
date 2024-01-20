@@ -1519,6 +1519,36 @@ impl<I2C: I2c> BME68xDev<I2C> {
         Ok(conf)
     }
 
+    /// Perform a single forced measurement
+    ///
+    /// # Arguments
+    /// * `temperature`: Heater temperature to use for the measurement
+    /// * `duration`: Heater duration to use for the measurement
+    ///
+    /// # Returns
+    /// Data from the single measurement
+    ///
+    /// # Errors
+    /// Returns an error if the measurement fails.
+    pub fn forced_measurent(
+        &mut self,
+        temperature: u16,
+        duration: u16,
+    ) -> Result<BME68xData, BME68xError> {
+        self.set_heatr_conf_forced(temperature, duration)?;
+        let config = self.get_config()?;
+        let delay_period =
+            self.get_meas_dur(BME68xOpMode::ForcedMode, &config) + (u32::from(duration) * 1000);
+
+        // Start measurement and wait for it to finish
+        self.set_op_mode(BME68xOpMode::ForcedMode)?;
+        (self.delay_us)(delay_period);
+
+        // Get the data
+        let (data, _) = self.get_data(BME68xOpMode::ForcedMode)?;
+        Ok(data[0])
+    }
+
     /// Perform a self test of the low gas variant of the sensor
     ///
     /// # Errors
