@@ -1181,8 +1181,6 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     /// Errors if failing to read from the registers.
-    // TODO: Remove the len argument?
-    // FIXME: Second version for reading a single register that does not need the "data" buf
     fn get_regs(&mut self, mut reg_addr: u8, data: &mut [u8]) -> Result<(), BME68xError> {
         // FIXME: Proper SPI support
         if matches!(self.intf, BME68xIntf::SPIIntf) {
