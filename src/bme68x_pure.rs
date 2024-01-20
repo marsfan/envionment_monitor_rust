@@ -44,67 +44,6 @@ const BME68X_HEATR_DUR1_DELAY: u32 = 1000000;
 /// Self test heater duration 2 delay time
 const BME68X_HEATR_DUR2_DELAY: u32 = 2000000;
 
-/// Control to enable or disable the heater.
-enum BME68xHeaterEnable {
-    /// Disable the heater
-    Disable,
-
-    /// Enable the heater
-    Enable,
-}
-
-impl From<BME68xHeaterEnable> for u8 {
-    fn from(value: BME68xHeaterEnable) -> Self {
-        match value {
-            BME68xHeaterEnable::Disable => 0x01,
-            BME68xHeaterEnable::Enable => 0x00,
-        }
-    }
-}
-
-/// Gas Measurement Enable Enum
-enum BME68xGasEnable {
-    /// Disable gas measurement
-    Disable,
-
-    /// Enable High Gas Measurement
-    EnableHigh,
-
-    /// Enable Low Gas Measurement
-    EnableLow,
-}
-
-impl From<BME68xGasEnable> for u8 {
-    fn from(value: BME68xGasEnable) -> Self {
-        match value {
-            BME68xGasEnable::Disable => 0x00,
-            BME68xGasEnable::EnableLow => 0x01,
-            BME68xGasEnable::EnableHigh => 0x02,
-        }
-    }
-}
-
-/// Enumeration of the Gas Sensing Variants
-// TODO: Find out what exactly this is
-#[derive(Clone, Copy)]
-enum BME68xVariant {
-    /// Low gas variant
-    GasLow,
-
-    /// High Gas Variant
-    GasHigh,
-}
-
-impl From<u8> for BME68xVariant {
-    fn from(value: u8) -> Self {
-        match value {
-            0x00 => Self::GasLow,
-            0x01 => Self::GasHigh,
-            _ => panic!("Cannot convert {value} to BME68xVariant"),
-        }
-    }
-}
-
 // Min/max values allowed for testing
 /// Min temp of 0c
 const BME68X_MIN_TEMPERATURE: f32 = 0.0;
@@ -384,6 +323,67 @@ impl From<u8> for BME68xMemPage {
 impl From<BME68xMemPage> for u8 {
     fn from(value: BME68xMemPage) -> Self {
         value as u8
+    }
+}
+
+/// Control to enable or disable the heater.
+enum BME68xHeaterEnable {
+    /// Disable the heater
+    Disable,
+
+    /// Enable the heater
+    Enable,
+}
+
+impl From<BME68xHeaterEnable> for u8 {
+    fn from(value: BME68xHeaterEnable) -> Self {
+        match value {
+            BME68xHeaterEnable::Disable => 0x01,
+            BME68xHeaterEnable::Enable => 0x00,
+        }
+    }
+}
+
+/// Gas Measurement Enable Enum
+enum BME68xGasEnable {
+    /// Disable gas measurement
+    Disable,
+
+    /// Enable High Gas Measurement
+    EnableHigh,
+
+    /// Enable Low Gas Measurement
+    EnableLow,
+}
+
+impl From<BME68xGasEnable> for u8 {
+    fn from(value: BME68xGasEnable) -> Self {
+        match value {
+            BME68xGasEnable::Disable => 0x00,
+            BME68xGasEnable::EnableLow => 0x01,
+            BME68xGasEnable::EnableHigh => 0x02,
+        }
+    }
+}
+
+/// Enumeration of the Gas Sensing Variants
+// TODO: Find out what exactly this is
+#[derive(Clone, Copy)]
+enum BME68xVariant {
+    /// Low gas variant
+    GasLow,
+
+    /// High Gas Variant
+    GasHigh,
+}
+
+impl From<u8> for BME68xVariant {
+    fn from(value: u8) -> Self {
+        match value {
+            0x00 => Self::GasLow,
+            0x01 => Self::GasHigh,
+            _ => panic!("Cannot convert {value} to BME68xVariant"),
+        }
     }
 }
 
