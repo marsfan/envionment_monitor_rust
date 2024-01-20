@@ -74,6 +74,7 @@ impl From<BME68xGasEnable> for u8 {
 
 /// Enumeration of the Gas Sensing Variants
 // TODO: Find out what exactly this is
+#[derive(Clone, Copy)]
 enum BME68xVariant {
     /// Low gas variant
     GasLow,
@@ -1331,16 +1332,19 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let nb_conv = self.set_conf(conf, op_mode)?;
         self.get_regs(BME68xRegister::CtrlGas0.into(), &mut ctrl_gas_data)?;
 
-        if conf.enable {
-            hctrl = BME68X_ENABLE_HEATER;
-            if matches!(self.variant_id, BME68xVariant::GasHigh) {
+        match (conf.enable, self.variant_id) {
+            (true, BME68xVariant::GasHigh) => {
+                hctrl = BME68X_ENABLE_HEATER;
                 run_gas = BME68xGasEnable::EnableHigh;
-            } else {
+            }
+            (true, BME68xVariant::GasLow) => {
+                hctrl = BME68X_ENABLE_HEATER;
                 run_gas = BME68xGasEnable::EnableLow;
             }
-        } else {
-            hctrl = BME68X_DISABLE_HEATER;
-            run_gas = BME68xGasEnable::Disable;
+            (false, _) => {
+                hctrl = BME68X_DISABLE_HEATER;
+                run_gas = BME68xGasEnable::Disable;
+            }
         }
 
         ctrl_gas_data[0] = set_bits(ctrl_gas_data[0], BME68X_HCTRL_MSK, BME68X_HCTRL_POS, hctrl);
