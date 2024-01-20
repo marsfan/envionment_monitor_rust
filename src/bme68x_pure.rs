@@ -50,14 +50,27 @@ const BME68X_DISABLE_HEATER: u8 = 0x01;
 /// Disable Heater
 const BME68X_ENABLE_HEATER: u8 = 0x00;
 
-// TODO: Make these an enum
-// TODO: What exactly is high/low
-/// Disable Gas Measurement
-const BME68X_DISABLE_GAS_MEAS: u8 = 0x00;
-/// Enable High Gas Measuremnt
-const BME68X_ENABLE_GAS_MEAS_H: u8 = 0x02;
-/// Enable Low gas measurement
-const BME68X_ENABLE_GAS_MEAS_L: u8 = 0x01;
+/// Gas Measurement Enable Enum
+enum BME68xGasEnable {
+    /// Disable gas measurement
+    Disable,
+
+    /// Enable High Gas Measurement
+    EnableHigh,
+
+    /// Enable Low Gas Measurement
+    EnableLow,
+}
+
+impl From<BME68xGasEnable> for u8 {
+    fn from(value: BME68xGasEnable) -> Self {
+        match value {
+            BME68xGasEnable::Disable => 0x00,
+            BME68xGasEnable::EnableLow => 0x01,
+            BME68xGasEnable::EnableHigh => 0x02,
+        }
+    }
+}
 
 /// Enumeration of the Gas Sensing Variants
 // TODO: Find out what exactly this is
@@ -1321,13 +1334,13 @@ impl<I2C: I2c> BME68xDev<I2C> {
         if conf.enable {
             hctrl = BME68X_ENABLE_HEATER;
             if matches!(self.variant_id, BME68xVariant::GasHigh) {
-                run_gas = BME68X_ENABLE_GAS_MEAS_H;
+                run_gas = BME68xGasEnable::EnableHigh;
             } else {
-                run_gas = BME68X_ENABLE_GAS_MEAS_L;
+                run_gas = BME68xGasEnable::EnableLow;
             }
         } else {
             hctrl = BME68X_DISABLE_HEATER;
-            run_gas = BME68X_DISABLE_GAS_MEAS;
+            run_gas = BME68xGasEnable::Disable;
         }
 
         ctrl_gas_data[0] = set_bits(ctrl_gas_data[0], BME68X_HCTRL_MSK, BME68X_HCTRL_POS, hctrl);
@@ -1336,7 +1349,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             ctrl_gas_data[1],
             BME68X_RUN_GAS_MSK,
             BME68X_RUN_GAS_POS,
-            run_gas,
+            run_gas.into(),
         );
 
         self.set_regs(&ctrl_gas_addr, &ctrl_gas_data, 2)
