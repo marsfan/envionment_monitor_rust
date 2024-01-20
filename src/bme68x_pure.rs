@@ -45,12 +45,6 @@ const BME68X_HEATR_DUR1_DELAY: u32 = 1000000;
 const BME68X_HEATR_DUR2_DELAY: u32 = 2000000;
 
 // TODO: Make these an enum
-/// Disable
-const BME68X_DISABLE: u8 = 0x0;
-/// Enable
-const BME68X_ENABLE: u8 = 0x01;
-
-// TODO: Make these an enum
 /// Enable Heater
 const BME68X_DISABLE_HEATER: u8 = 0x01;
 /// Disable Heater
@@ -848,7 +842,7 @@ pub struct BME68xConf {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct BME68xHeatrConf {
     /// Enable gas measurement
-    pub enable: u8,
+    pub enable: bool,
 
     /// Store the heater temperature for forced mode degree Celsius
     pub heatr_temp: u16,
@@ -875,7 +869,7 @@ impl BME68xHeatrConf {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            enable: 0,
+            enable: false,
             heatr_temp: 0,
             heatr_dur: 0,
             heatr_temp_prof: [0; 10],
@@ -1292,7 +1286,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let nb_conv = self.set_conf(conf, op_mode)?;
         self.get_regs(BME68xRegister::CtrlGas0.into(), &mut ctrl_gas_data)?;
 
-        if conf.enable == BME68X_ENABLE {
+        if conf.enable {
             hctrl = BME68X_ENABLE_HEATER;
             if self.variant_id == BME68X_VARIANT_GAS_HIGH {
                 run_gas = BME68X_ENABLE_GAS_MEAS_H;
@@ -1357,7 +1351,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             odr: BME68xODR::from(0),
         };
         let mut heatr_conf = BME68xHeatrConf {
-            enable: BME68X_ENABLE,
+            enable: true,
             heatr_dur: BME68X_HEATR_DUR1,
             heatr_temp: BME68X_HIGH_TEMP,
             heatr_dur_prof: [0; 10],

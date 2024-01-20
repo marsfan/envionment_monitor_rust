@@ -20,7 +20,7 @@ fn test_forced<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
         odr: BME68xODR::ODRNone,
     };
     let bme_heater_conf = BME68xHeatrConf {
-        enable: 1,
+        enable: true,
         heatr_temp: 300,
         heatr_dur: 100,
         heatr_temp_prof: [0; 10],
@@ -65,7 +65,7 @@ fn test_parallel<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
         odr: BME68xODR::ODRNone,
     };
     let bme_heater_conf = BME68xHeatrConf {
-        enable: 1,
+        enable: true,
         heatr_temp: 0,
         heatr_dur: 0,
         heatr_temp_prof: [320, 100, 100, 100, 200, 200, 200, 320, 320, 320],
@@ -115,7 +115,7 @@ fn test_sequential<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
         odr: BME68xODR::ODRNone,
     };
     let bme_heater_conf = BME68xHeatrConf {
-        enable: 1,
+        enable: true,
         heatr_temp: 0,
         heatr_dur: 0,
         heatr_temp_prof: [200, 240, 280, 320, 360, 360, 320, 280, 240, 200],
