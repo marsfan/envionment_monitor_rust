@@ -924,7 +924,6 @@ pub struct BME68xHeatrConf {
     pub shared_heatr_dur: u16,
 }
 
-// TODO: constructors for each mode
 impl BME68xHeatrConf {
     /// Create a new empty instance.
     #[must_use]
@@ -1595,7 +1594,6 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     /// Returns an error if the self test failed.
-    // FIXME This function is not working right now. Not sure why
     pub fn selftest_check(&mut self) -> Result<(), BME68xError> {
         // TODO: Figure out how we can re-enable cloning for test?
         // let mut t_dev = self.clone();
@@ -1688,7 +1686,6 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         // Copy data over
         /* Temperature related coefficients */
-        // FIXME: The unsigned to signed conversions might not properly wrap
         self.calib.par_t1 = concat_bytes(
             coeff_array[BME68X_IDX_T1_MSB],
             coeff_array[BME68X_IDX_T1_LSB],
@@ -1807,8 +1804,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             + (f32::from(self.calib.par_p2) * var1))
             / 524288.0;
         let var1 = (1.0 + (var1 / 32768.0)) * (f32::from(self.calib.par_p1));
-        // TODO: Might be worth looking to see if we can safe casting to float until later to reduce
-        // operation of float
+
         let calc_pres = 1048576.0 - cast_u2f32(pres_adc);
 
         if var1 != 0.0 {
@@ -1831,8 +1827,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `hum_adc`: Raw humidty ADC value
     fn calc_humidity(&self, hum_adc: u32) -> f32 {
         let temp_comp = (self.calib.t_fine) / 5120.0;
-        // TODO: Might be worth looking to see if we can safe casting to float until later to reduce
-        // operation of float
+
         let var1 = cast_u2f32(hum_adc)
             - ((f32::from(self.calib.par_h1) * 16.0)
                 + ((f32::from(self.calib.par_h3) / 2.0) * temp_comp));
