@@ -19,18 +19,9 @@ fn test_forced<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
         os_pres: BME68xOs::Os1x,
         odr: BME68xODR::ODRNone,
     };
-    let bme_heater_conf = BME68xHeatrConf {
-        enable: true,
-        heatr_temp: 300,
-        heatr_dur: 100,
-        heatr_temp_prof: [0; 10],
-        heatr_dur_prof: [0; 10],
-        profile_len: 0,
-        shared_heatr_dur: 0,
-    };
+
     bme.set_config(&bme_conf).unwrap();
-    bme.set_heatr_conf(BME68xOpMode::ForcedMode, &bme_heater_conf)
-        .unwrap();
+    bme.set_heatr_conf_forced(300, 100).unwrap();
 
     for _ in 0..5 {
         bme.set_op_mode(BME68xOpMode::ForcedMode).unwrap();
@@ -78,8 +69,12 @@ fn test_parallel<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     };
     bme.init().unwrap();
     bme.set_config(&bme_conf).unwrap();
-    bme.set_heatr_conf(BME68xOpMode::ParallelMode, &bme_heater_conf)
-        .unwrap();
+    bme.set_heatr_conf_parallel(
+        &bme_heater_conf.heatr_temp_prof,
+        &bme_heater_conf.heatr_dur_prof,
+    )
+    .unwrap();
+
     bme.set_op_mode(BME68xOpMode::ParallelMode).unwrap();
     let mut sample_count = 0;
     while sample_count <= 50 {

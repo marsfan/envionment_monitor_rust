@@ -9,6 +9,8 @@ use std::num::TryFromIntError;
 use embedded_hal::i2c::I2c;
 
 // Other stuff
+/// Max profile length
+const MAX_PROFILE_LEN: usize = 10;
 
 ///  Chip Unique Identifier
 const BME68X_CHIP_ID: u8 = 0x61;
@@ -911,10 +913,10 @@ pub struct BME68xHeatrConf {
     pub heatr_dur: u16,
 
     /// Store the heater temperature profile in degree Celsius, Max of 10
-    pub heatr_temp_prof: [u16; 10],
+    pub heatr_temp_prof: [u16; MAX_PROFILE_LEN],
 
     /// Store the heating duration profile in milliseconds. Max of 10
-    pub heatr_dur_prof: [u16; 10],
+    pub heatr_dur_prof: [u16; MAX_PROFILE_LEN],
 
     /// Variable to store the length of the heating profile
     pub profile_len: u8,
@@ -932,10 +934,74 @@ impl BME68xHeatrConf {
             enable: false,
             heatr_temp: 0,
             heatr_dur: 0,
-            heatr_temp_prof: [0; 10],
-            heatr_dur_prof: [0; 10],
+            heatr_temp_prof: [0; MAX_PROFILE_LEN],
+            heatr_dur_prof: [0; MAX_PROFILE_LEN],
             profile_len: 0,
             shared_heatr_dur: 0,
+        }
+    }
+
+    /// Create a new instance for a forced measurement
+    ///
+    /// # Arguments
+    /// * `temperature`: The temperature to run the heater at
+    /// * `duration`: The duration to run the heater for.
+    ///
+    /// # Returns
+    /// New configuration instance for a forced measurement
+    #[must_use]
+    pub fn new_forced(temperature: u16, duration: u16) -> Self {
+        Self {
+            enable: true,
+            heatr_temp: temperature,
+            heatr_dur: duration,
+            heatr_temp_prof: [0; MAX_PROFILE_LEN],
+            heatr_dur_prof: [0; MAX_PROFILE_LEN],
+            profile_len: 0,
+            shared_heatr_dur: 0,
+        }
+    }
+
+    /// Create a new instance for a parallel measurement
+    ///
+    /// A profile can be defined of up to 10 steps. Both the heater and
+    /// temperatuer profile must have the same number of steps
+    ///
+    /// # Arguments
+    /// * `temp_profile`: The Temperature profile to run the heater for
+    /// * `duration_profile`: Heater Duration Profile to use
+    /// * `shared_heatr_dur`: Shared heating duration time
+    ///
+    /// # Returns
+    /// Created instance for a parallel measurement
+    ///
+    /// # Errors
+    /// Will Return a `BME68xError::InvalidLength` If the profiles are longer
+    /// than 10 steps, or the profiles have differnet lengths.
+    pub fn new_parallel(
+        temp_profile: &[u16],
+        duration_profile: &[u16],
+        shared_duration: u16,
+    ) -> Result<Self, BME68xError> {
+        if temp_profile.len() != duration_profile.len() || temp_profile.len() > MAX_PROFILE_LEN {
+            Err(BME68xError::InvalidLength)
+        } else {
+            let mut heatr_temp_prof = [0; MAX_PROFILE_LEN];
+            let mut heatr_dur_prof = [0; MAX_PROFILE_LEN];
+
+            heatr_temp_prof[0..temp_profile.len()].copy_from_slice(temp_profile);
+            heatr_dur_prof[0..duration_profile.len()].copy_from_slice(duration_profile);
+
+            Ok(Self {
+                enable: true,
+                heatr_temp: 0,
+                heatr_dur: 0,
+                heatr_temp_prof,
+                heatr_dur_prof,
+                // Should never error since we alrady checked the number is <10
+                profile_len: u8::try_from(temp_profile.len())?,
+                shared_heatr_dur: shared_duration,
+            })
         }
     }
 }
@@ -1371,6 +1437,63 @@ impl<I2C: I2c> BME68xDev<I2C> {
         self.set_regs(&ctrl_gas_addr, &ctrl_gas_data, 2)
     }
 
+    /// Set the heater configuration to be disabled.
+    ///
+    /// # Arguments
+    /// * `op_mode`: The Operating mode to use.
+    ///
+    /// # Errors
+    /// Returns an error if disabling fails.
+    pub fn set_heatr_conf_disabled(&mut self, op_mode: BME68xOpMode) -> Result<(), BME68xError> {
+        self.set_heatr_conf(op_mode, &BME68xHeatrConf::new())
+    }
+
+    /// Set the heater configuration for a forced measurement
+    ///
+    /// # Arguments
+    /// * `temperature`: The temperature to set the heater to
+    /// * `duration`: The duration to runt the heater for
+    ///
+    /// # Errors
+    /// Returns an error if setting the heater configuration fails.
+    pub fn set_heatr_conf_forced(
+        &mut self,
+        temperature: u16,
+        duration: u16,
+    ) -> Result<(), BME68xError> {
+        self.set_heatr_conf(
+            BME68xOpMode::ForcedMode,
+            &BME68xHeatrConf::new_forced(temperature, duration),
+        )
+    }
+
+    /// Set the heater configuration for parallel measurement
+    ///
+    /// Profile lengths must be equal, and less than or equal to 10
+    /// steps
+    ///
+    /// # Arguments
+    /// * `temp_profile`: The temperature profile to use
+    /// * `duration_profile`: The duration profile to use
+    ///
+    /// # Errors
+    /// Returns ane error if setting the heater configuraiton fails.
+    pub fn set_heatr_conf_parallel(
+        &mut self,
+        temp_profile: &[u16],
+        duration_profile: &[u16],
+    ) -> Result<(), BME68xError> {
+        let current_config = self.get_config()?;
+        // FIXME: Find out where the 140 comes from
+        let shared_duration = u16::try_from(
+            140 - (self.get_meas_dur(BME68xOpMode::ParallelMode, &current_config) / 1000),
+        )?;
+        self.set_heatr_conf(
+            BME68xOpMode::ParallelMode,
+            &BME68xHeatrConf::new_parallel(temp_profile, duration_profile, shared_duration)?,
+        )
+    }
+
     /// Get the heater configuration of the sensor
     ///
     ///
@@ -1383,7 +1506,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let mut conf = BME68xHeatrConf::new();
         /* FIXME: Add conversion to deg C and ms and add the other parameters. This is copied from the original BME68x.c file  */
 
-        let mut data = [0; 10];
+        let mut data = [0; MAX_PROFILE_LEN];
 
         // FIXME: Pass in profile len conf, like in the original API.
         self.get_regs(BME68xRegister::ResHeat0.into(), &mut data)?;
@@ -1415,8 +1538,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
             enable: true,
             heatr_dur: BME68X_HEATR_DUR1,
             heatr_temp: BME68X_HIGH_TEMP,
-            heatr_dur_prof: [0; 10],
-            heatr_temp_prof: [0; 10],
+            heatr_dur_prof: [0; MAX_PROFILE_LEN],
+            heatr_temp_prof: [0; MAX_PROFILE_LEN],
             profile_len: 0,
             shared_heatr_dur: 0,
         };
@@ -1901,10 +2024,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ) -> Result<u8, BME68xError> {
         let mut nb_conv = 0;
         let mut write_len = 0;
-        let mut rh_reg_addr = [0; 10];
-        let mut rh_reg_data = [0; 10];
-        let mut gw_reg_addr = [0; 10];
-        let mut gw_reg_data = [0; 10];
+        let mut rh_reg_addr = [0; MAX_PROFILE_LEN];
+        let mut rh_reg_data = [0; MAX_PROFILE_LEN];
+        let mut gw_reg_addr = [0; MAX_PROFILE_LEN];
+        let mut gw_reg_data = [0; MAX_PROFILE_LEN];
 
         match op_mode {
             BME68xOpMode::ForcedMode => {
