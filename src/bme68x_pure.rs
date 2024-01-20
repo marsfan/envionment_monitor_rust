@@ -1333,8 +1333,6 @@ impl<I2C: I2c> BME68xDev<I2C> {
         conf: &BME68xHeatrConf,
     ) -> Result<(), BME68xError> {
         self.set_op_mode(BME68xOpMode::SleepMode)?;
-        let hctrl;
-        let run_gas;
         let mut ctrl_gas_data = [0; 2];
         let ctrl_gas_addr = [
             BME68xRegister::CtrlGas0.into(),
@@ -1344,20 +1342,17 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let nb_conv = self.set_conf(conf, op_mode)?;
         self.get_regs(BME68xRegister::CtrlGas0.into(), &mut ctrl_gas_data)?;
 
-        match (conf.enable, self.variant_id) {
+        let (hctrl, run_gas) = match (conf.enable, self.variant_id) {
             (true, BME68xVariant::GasHigh) => {
-                hctrl = BME68xHeaterEnable::Enable;
-                run_gas = BME68xGasEnable::EnableHigh;
+                (BME68xHeaterEnable::Enable, BME68xGasEnable::EnableHigh)
             }
+
             (true, BME68xVariant::GasLow) => {
-                hctrl = BME68xHeaterEnable::Enable;
-                run_gas = BME68xGasEnable::EnableLow;
+                (BME68xHeaterEnable::Enable, BME68xGasEnable::EnableLow)
             }
-            (false, _) => {
-                hctrl = BME68xHeaterEnable::Disable;
-                run_gas = BME68xGasEnable::Disable;
-            }
-        }
+
+            (false, _) => (BME68xHeaterEnable::Disable, BME68xGasEnable::Disable),
+        };
 
         ctrl_gas_data[0] = set_bits(
             ctrl_gas_data[0],
