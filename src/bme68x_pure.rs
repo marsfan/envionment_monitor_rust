@@ -1111,11 +1111,14 @@ impl<I2C: I2c> BME68xDev<I2C> {
         &mut self,
         reg_addr: &[u8],
         reg_data: &[u8],
-        len: usize,
+        // len: usize,
     ) -> Result<(), BME68xError> {
         // FIXME: Proper spi support
-        let mut tmp_buff = [0; BME68X_LEN_INTERLEAVE_BUFF];
-        if (len > 0) && (len <= (BME68X_LEN_INTERLEAVE_BUFF / 2)) {
+        let len = reg_addr.len();
+        if reg_addr.len() != reg_data.len() {
+            Err(BME68xError::InvalidLength)
+        } else if (len > 0) && (len <= (BME68X_LEN_INTERLEAVE_BUFF / 2)) {
+            let mut tmp_buff = [0; BME68X_LEN_INTERLEAVE_BUFF];
             // Data is interwoven in the form (reg, data, reg, data, reg, data, ...)
             // FIXME: Re-Write to not require fixed length array? use iter?
             for index in 0..len {
@@ -1393,7 +1396,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         data_array[4] = set_bits(data_array[4], BME68X_ODR20_MSK, BME68X_ODR20_POS, odr20);
         data_array[0] = set_bits(data_array[0], BME68X_ODR3_MSK, BME68X_ODR3_POS, odr3);
 
-        self.set_regs(&reg_array, &data_array, BME68X_LEN_CONFIG)?;
+        self.set_regs(&reg_array, &data_array)?;
         self.set_op_mode(current_op_mode)
     }
 
@@ -1473,7 +1476,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             run_gas.into(),
         );
 
-        self.set_regs(&ctrl_gas_addr, &ctrl_gas_data, 2)
+        self.set_regs(&ctrl_gas_addr, &ctrl_gas_data)
     }
 
     /// Set the heater configuration to be disabled.
@@ -2138,8 +2141,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
             BME68xOpMode::SleepMode => return Err(BME68xError::DefineOpMode),
         }
 
-        self.set_regs(&rh_reg_addr, &rh_reg_data, write_len.into())?;
-        self.set_regs(&gw_reg_addr, &gw_reg_data, write_len.into())?;
+        let write_len = usize::from(write_len);
+
+        self.set_regs(&rh_reg_addr[0..write_len], &rh_reg_data[0..write_len])?;
+        self.set_regs(&gw_reg_addr[0..write_len], &gw_reg_data[0..write_len])?;
 
         Ok(nb_conv)
     }
