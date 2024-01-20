@@ -640,87 +640,87 @@ impl BME68xData {
 
 /// Calibration Coefficent Data Structurre
 #[derive(Clone, Copy)]
-pub struct BME68xCalibData {
+struct BME68xCalibData {
     /// Calibration coefficient for the humidity sensor
-    pub par_h1: u16,
+    par_h1: u16,
 
     /// Calibration coefficient for the humidity sensor
-    pub par_h2: u16,
+    par_h2: u16,
 
     /// Calibration coefficient for the humidity sensor
-    pub par_h3: i8,
+    par_h3: i8,
 
     /// Calibration coefficient for the humidity sensor
-    pub par_h4: i8,
+    par_h4: i8,
 
     /// Calibration coefficient for the humidity sensor
-    pub par_h5: i8,
+    par_h5: i8,
 
     /// Calibration coefficient for the humidity sensor
-    pub par_h6: u8,
+    par_h6: u8,
 
     /// Calibration coefficient for the humidity sensor
-    pub par_h7: i8,
+    par_h7: i8,
 
     /// Calibration coefficient for the gas sensor
-    pub par_gh1: i8,
+    par_gh1: i8,
 
     /// Calibration coefficient for the gas sensor
-    pub par_gh2: i16,
+    par_gh2: i16,
 
     /// Calibration coefficient for the gas sensor
-    pub par_gh3: i8,
+    par_gh3: i8,
 
     /// Calibration coefficient for the temperature sensor
-    pub par_t1: u16,
+    par_t1: u16,
 
     /// Calibration coefficient for the temperature sensor
-    pub par_t2: i16,
+    par_t2: i16,
 
     /// Calibration coefficient for the temperature sensor
-    pub par_t3: i8,
+    par_t3: i8,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p1: u16,
+    par_p1: u16,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p2: i16,
+    par_p2: i16,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p3: i8,
+    par_p3: i8,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p4: i16,
+    par_p4: i16,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p5: i16,
+    par_p5: i16,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p6: i8,
+    par_p6: i8,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p7: i8,
+    par_p7: i8,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p8: i16,
+    par_p8: i16,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p9: i16,
+    par_p9: i16,
 
     /// Calibration coefficient for the pressure sensor
-    pub par_p10: u8,
+    par_p10: u8,
 
     /// Variable to store the intermediate temperature coefficient
-    pub t_fine: f32,
+    t_fine: f32,
 
     /// Heater resistance range coefficient
-    pub res_heat_range: u8,
+    res_heat_range: u8,
 
     /// Heater resistance value coefficient
-    pub res_heat_val: i8,
+    res_heat_val: i8,
 
     /// Gas resistance range switching error coefficient
-    pub range_sw_err: i8,
+    range_sw_err: i8,
 }
 
 impl BME68xCalibData {
