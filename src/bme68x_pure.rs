@@ -5,7 +5,6 @@
 #![allow(clippy::unreadable_literal)]
 use std::num::TryFromIntError;
 
-// TODO: More enumerations to replace constants
 use embedded_hal::i2c::I2c;
 
 // Other stuff
@@ -1110,7 +1109,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Errors
     /// Errors if failing to write to the registers.
-    pub fn set_regs(
+    fn set_regs(
         &mut self,
         reg_addr: &[u8],
         reg_data: &[u8],
@@ -1154,7 +1153,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// Errors if failing to read from the registers.
     // TODO: Remove the len argument?
     // FIXME: Second version for reading a single register that does not need the "data" buf
-    pub fn get_regs(&mut self, mut reg_addr: u8, data: &mut [u8]) -> Result<(), BME68xError> {
+    fn get_regs(&mut self, mut reg_addr: u8, data: &mut [u8]) -> Result<(), BME68xError> {
         // FIXME: Proper SPI support
         if matches!(self.intf, BME68xIntf::SPIIntf) {
             self.set_mem_page(reg_addr)?;
