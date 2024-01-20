@@ -71,8 +71,10 @@ fn test_parallel<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
         heatr_temp_prof: [320, 100, 100, 100, 200, 200, 200, 320, 320, 320],
         heatr_dur_prof: [5, 2, 10, 30, 5, 5, 5, 5, 5, 5],
         profile_len: 10,
-        shared_heatr_dur: (140 - (bme.get_meas_dur(BME68xOpMode::ParallelMode, &bme_conf) / 1000))
-            as u16,
+        shared_heatr_dur: u16::try_from(
+            140 - (bme.get_meas_dur(BME68xOpMode::ParallelMode, &bme_conf) / 1000),
+        )
+        .unwrap(),
     };
     bme.init().unwrap();
     bme.set_config(&bme_conf).unwrap();
