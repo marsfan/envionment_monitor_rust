@@ -59,12 +59,25 @@ const BME68X_ENABLE_GAS_MEAS_H: u8 = 0x02;
 /// Enable Low gas measurement
 const BME68X_ENABLE_GAS_MEAS_L: u8 = 0x01;
 
-// TODO: Make these an enum
-// TODO: What is high/low
-/// Low Gas Variant
-const BME68X_VARIANT_GAS_LOW: u32 = 0x00;
-/// High Gas Variant
-const BME68X_VARIANT_GAS_HIGH: u32 = 0x01;
+/// Enumeration of the Gas Sensing Variants
+// TODO: Find out what exactly this is
+enum BME68xVariant {
+    /// Low gas variant
+    GasLow,
+
+    /// High Gas Variant
+    GasHigh,
+}
+
+impl From<u8> for BME68xVariant {
+    fn from(value: u8) -> Self {
+        match value {
+            0x00 => Self::GasLow,
+            0x01 => Self::GasHigh,
+            _ => panic!("Cannot convert {value} to BME68xVariant"),
+        }
+    }
+}
 
 // Min/max values allowed for testing
 /// Min temp of 0c
@@ -914,9 +927,7 @@ pub struct BME68xDev<I2C> {
     chip_id: u8,
 
     /// Variant ID.
-    /// 0 = BME68X_VARIANT_GAS_LOW
-    /// 1 = BME68X_VARIANT_GAS_HIGH
-    variant_id: u32,
+    variant_id: BME68xVariant,
 
     /// SPI/I2C Interface
     intf: BME68xIntf,
@@ -967,7 +978,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             i2c: bus,
             chip_id: 0,
             amb_temp,
-            variant_id: 0,
+            variant_id: BME68xVariant::GasLow,
             intf,
             mem_page: BME68xMemPage::Page0,
             calib: BME68xCalibData::new(),
@@ -1309,7 +1320,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         if conf.enable {
             hctrl = BME68X_ENABLE_HEATER;
-            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+            if matches!(self.variant_id, BME68xVariant::GasHigh) {
                 run_gas = BME68X_ENABLE_GAS_MEAS_H;
             } else {
                 run_gas = BME68X_ENABLE_GAS_MEAS_L;
@@ -1530,7 +1541,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     fn read_variant_id(&mut self) -> Result<(), BME68xError> {
         let mut data = [0; 1];
         self.get_regs(BME68xRegister::VariantId.into(), &mut data)?;
-        self.variant_id = u32::from(data[0]);
+        self.variant_id = BME68xVariant::from(data[0]);
         Ok(())
     }
 
@@ -1687,7 +1698,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             let adc_gas_res_high = (u32::from(buff[15]) * 4) | ((u32::from(buff[16])) / 64);
             let gas_range_l = buff[14] & BME68X_GAS_RANGE_MSK;
             let gas_range_h = buff[16] & BME68X_GAS_RANGE_MSK;
-            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+            if matches!(self.variant_id, BME68xVariant::GasHigh) {
                 data.status |= buff[16] & BME68X_GASM_VALID_MSK;
                 data.status |= buff[16] & BME68X_HEAT_STAB_MSK;
             } else {
@@ -1718,7 +1729,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 data.temperature = self.calc_temperature(adc_temp);
                 data.pressure = self.calc_pressure(adc_pres);
                 data.humidity = self.calc_humidity(adc_hum);
-                if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+                if matches!(self.variant_id, BME68xVariant::GasHigh) {
                     data.gas_resistance = calc_gas_resistance_high(
                         // Checked mathmatically. Should never go out of bounds
                         u16::try_from(adc_gas_res_high)?,
@@ -1765,7 +1776,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 (u32::from(buff[off + 15]) * 4) | ((u32::from(buff[off + 16])) / 64);
             let gas_range_l = buff[off + 14] & BME68X_GAS_RANGE_MSK;
             let gas_range_h = buff[off + 16] & BME68X_GAS_RANGE_MSK;
-            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+            if matches!(self.variant_id, BME68xVariant::GasHigh) {
                 data[i].status |= buff[off + 16] & BME68X_GASM_VALID_MSK;
                 data[i].status |= buff[off + 16] & BME68X_HEAT_STAB_MSK;
             } else {
@@ -1778,7 +1789,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             data[i].temperature = self.calc_temperature(adc_temp);
             data[i].pressure = self.calc_pressure(adc_pres);
             data[i].humidity = self.calc_humidity(adc_hum);
-            if self.variant_id == BME68X_VARIANT_GAS_HIGH {
+            if matches!(self.variant_id, BME68xVariant::GasHigh) {
                 data[i].gas_resistance = calc_gas_resistance_high(
                     // Checked mathmatically. Should never go out of bounds
                     u16::try_from(adc_gas_res_high)?,
