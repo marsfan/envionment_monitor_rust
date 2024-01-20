@@ -463,6 +463,23 @@ pub enum BME68xOs {
     Os16x = 5,
 }
 
+impl BME68xOs {
+    /// Get the number of measurement cycles for each oversampling option.
+    ///
+    /// # Returns
+    /// The number of measurement cycles for the given oversampling option.
+    fn get_meas_cycles(self) -> u32 {
+        match self {
+            BME68xOs::OsNone => 0,
+            BME68xOs::Os1x => 1,
+            BME68xOs::Os2x => 2,
+            BME68xOs::Os4x => 4,
+            BME68xOs::Os8x => 8,
+            BME68xOs::Os16x => 16,
+        }
+    }
+}
+
 impl From<BME68xOs> for u8 {
     fn from(value: BME68xOs) -> Self {
         value as u8
@@ -1062,13 +1079,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `conf`: The sensor configuration.
     pub fn get_meas_dur(&self, op_mode: BME68xOpMode, conf: &BME68xConf) -> u32 {
         let mut meas_dur;
-        let mut meas_cycles;
-        let os_to_meas_cycles = [0, 1, 2, 4, 8, 16];
 
-        // TODO: Saferr way than using "as"
-        meas_cycles = os_to_meas_cycles[conf.os_temp as usize];
-        meas_cycles += os_to_meas_cycles[conf.os_pres as usize];
-        meas_cycles += os_to_meas_cycles[conf.os_hum as usize];
+        let meas_cycles = conf.os_temp.get_meas_cycles()
+            + conf.os_pres.get_meas_cycles()
+            + conf.os_hum.get_meas_cycles();
 
         // TPH Measurement Duration
         meas_dur = meas_cycles * 1963;
@@ -1268,16 +1282,12 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         // FIXME: Pass in profile len conf, like in the original API.
         self.get_regs(BME68xRegister::ResHeat0.into(), &mut data)?;
-        for (index, value) in data.into_iter().enumerate() {
-            conf.heatr_temp_prof[index] = value.into();
-        }
-
-        self.get_regs(BME68xRegister::GasWait0.into(), &mut data)?;
+        conf.heatr_temp_prof = data.map(std::convert::Into::into);
 
         // FIXME: Pass in profile len conf, like in the original API.
-        for (index, value) in data.into_iter().enumerate() {
-            conf.heatr_dur_prof[index] = value.into();
-        }
+        self.get_regs(BME68xRegister::GasWait0.into(), &mut data)?;
+        conf.heatr_dur_prof = data.map(std::convert::Into::into);
+
         Ok(conf)
     }
 
