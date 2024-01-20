@@ -1,4 +1,5 @@
 //! BME68X Driver Implementation in pure rust.
+// TODO: Conditional FPU support?
 
 // FIXME: Get this moved into cargo.toml. IDK why it is nt working there
 #![allow(clippy::unreadable_literal)]
@@ -555,7 +556,56 @@ impl From<u8> for BME68xODR {
     }
 }
 
-// TODO: Conditional FPU support?
+/// Enumertion of possible filter options
+#[derive(Clone, Copy, Debug)]
+#[repr(u8)]
+pub enum BME68xFilter {
+    /// No Filtering
+    Off = 0,
+
+    /// Filter Coefficent of 2
+    Size1 = 1,
+
+    /// Filter Coefficcent of 4,
+    Size3 = 2,
+
+    /// Filter Coefficent of 8
+    Size7 = 3,
+
+    /// Filter Coefficent of 16
+    Size15 = 4,
+
+    /// Filter Coefficent of 32,
+    Size31 = 5,
+
+    /// Filter Coefficent of 64
+    Size63 = 6,
+
+    /// Filter Coefficent of 128,
+    Size127 = 7,
+}
+
+impl From<BME68xFilter> for u8 {
+    fn from(value: BME68xFilter) -> Self {
+        value as u8
+    }
+}
+
+impl From<u8> for BME68xFilter {
+    fn from(value: u8) -> Self {
+        match value {
+            0 => Self::Off,
+            1 => Self::Size1,
+            2 => Self::Size3,
+            3 => Self::Size7,
+            4 => Self::Size15,
+            5 => Self::Size31,
+            6 => Self::Size63,
+            7 => Self::Size127,
+            _ => panic!("Cannot convert {value} into BME68xFilter"),
+        }
+    }
+}
 
 /// Enumeration of possible interfaces for the sensor.
 #[derive(Clone, Copy)]
@@ -787,9 +837,8 @@ pub struct BME68xConf {
     /// Pressure Oversampling
     pub os_pres: BME68xOs,
 
-    // FIXME: Need enum
     /// Filter Coefficent
-    pub filter: u8,
+    pub filter: BME68xFilter,
 
     /// Standby time between sequential mode measurement profiles
     pub odr: BME68xODR,
@@ -814,7 +863,6 @@ pub struct BME68xHeatrConf {
     pub heatr_dur_prof: [u16; 10],
 
     /// Variable to store the length of the heating profile
-    // FIXME: Can probably remove since vec can have length calcualted
     pub profile_len: u8,
 
     /// Variable to store heating duration for parallel mode in milliseconds
@@ -1166,7 +1214,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             data_array[4],
             BME68X_FILTER_MSK,
             BME68X_FILTER_POS,
-            conf.filter,
+            conf.filter.into(),
         );
         data_array[3] = set_bits(
             data_array[3],
@@ -1204,7 +1252,11 @@ impl<I2C: I2c> BME68xDev<I2C> {
         self.get_regs(BME68xRegister::CtrlGas1.into(), &mut data_array)?;
         Ok(BME68xConf {
             os_hum: BME68xOs::from(data_array[1] & BME68X_OSH_MSK),
-            filter: get_bits(data_array[4], BME68X_FILTER_MSK, BME68X_FILTER_POS),
+            filter: BME68xFilter::from(get_bits(
+                data_array[4],
+                BME68X_FILTER_MSK,
+                BME68X_FILTER_POS,
+            )),
             os_temp: BME68xOs::from(get_bits(data_array[3], BME68X_OST_MSK, BME68X_OST_POS)),
             os_pres: BME68xOs::from(get_bits(data_array[3], BME68X_OSP_MSK, BME68X_OSP_POS)),
             odr: if get_bits(data_array[0], BME68X_ODR3_MSK, BME68X_ODR3_POS) == 0 {
@@ -1301,7 +1353,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             os_hum: BME68xOs::Os1x,
             os_pres: BME68xOs::Os16x,
             os_temp: BME68xOs::Os2x,
-            filter: 0,
+            filter: BME68xFilter::Off,
             odr: BME68xODR::from(0),
         };
         let mut heatr_conf = BME68xHeatrConf {

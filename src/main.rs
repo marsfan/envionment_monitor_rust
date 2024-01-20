@@ -1,8 +1,8 @@
 //! Environment Monitoring application
 use embedded_hal::i2c::I2c;
 use environment_monitor_rust::bme68x_pure::{
-    BME68xAddr, BME68xConf, BME68xDev, BME68xHeatrConf, BME68xIntf, BME68xODR, BME68xOpMode,
-    BME68xOs,
+    BME68xAddr, BME68xConf, BME68xDev, BME68xFilter, BME68xHeatrConf, BME68xIntf, BME68xODR,
+    BME68xOpMode, BME68xOs,
 };
 use esp_idf_hal::delay::FreeRtos;
 use esp_idf_hal::i2c::{I2cConfig, I2cDriver};
@@ -13,7 +13,7 @@ use esp_idf_hal::prelude::*;
 fn test_forced<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     bme.init().unwrap();
     let bme_conf = BME68xConf {
-        filter: 0,
+        filter: BME68xFilter::Off,
         os_hum: BME68xOs::Os16x,
         os_temp: BME68xOs::Os2x,
         os_pres: BME68xOs::Os1x,
@@ -58,7 +58,7 @@ fn test_forced<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
 fn test_parallel<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     bme.init().unwrap();
     let bme_conf = BME68xConf {
-        filter: 0,
+        filter: BME68xFilter::Off,
         os_hum: BME68xOs::Os1x,
         os_temp: BME68xOs::Os2x,
         os_pres: BME68xOs::Os16x,
@@ -108,7 +108,7 @@ fn test_parallel<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
 fn test_sequential<I2C: I2c>(bme: &mut BME68xDev<I2C>) {
     bme.init().unwrap();
     let bme_conf = BME68xConf {
-        filter: 0,
+        filter: BME68xFilter::Off,
         os_hum: BME68xOs::Os16x,
         os_temp: BME68xOs::Os2x,
         os_pres: BME68xOs::Os1x,
