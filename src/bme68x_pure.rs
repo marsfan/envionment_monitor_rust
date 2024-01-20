@@ -44,11 +44,23 @@ const BME68X_HEATR_DUR1_DELAY: u32 = 1000000;
 /// Self test heater duration 2 delay time
 const BME68X_HEATR_DUR2_DELAY: u32 = 2000000;
 
-// TODO: Make these an enum
-/// Enable Heater
-const BME68X_DISABLE_HEATER: u8 = 0x01;
-/// Disable Heater
-const BME68X_ENABLE_HEATER: u8 = 0x00;
+/// Control to enable or disable the heater.
+enum BME68xHeaterEnable {
+    /// Disable the heater
+    Disable,
+
+    /// Enable the heater
+    Enable,
+}
+
+impl From<BME68xHeaterEnable> for u8 {
+    fn from(value: BME68xHeaterEnable) -> Self {
+        match value {
+            BME68xHeaterEnable::Disable => 0x01,
+            BME68xHeaterEnable::Enable => 0x00,
+        }
+    }
+}
 
 /// Gas Measurement Enable Enum
 enum BME68xGasEnable {
@@ -1334,20 +1346,25 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         match (conf.enable, self.variant_id) {
             (true, BME68xVariant::GasHigh) => {
-                hctrl = BME68X_ENABLE_HEATER;
+                hctrl = BME68xHeaterEnable::Enable;
                 run_gas = BME68xGasEnable::EnableHigh;
             }
             (true, BME68xVariant::GasLow) => {
-                hctrl = BME68X_ENABLE_HEATER;
+                hctrl = BME68xHeaterEnable::Enable;
                 run_gas = BME68xGasEnable::EnableLow;
             }
             (false, _) => {
-                hctrl = BME68X_DISABLE_HEATER;
+                hctrl = BME68xHeaterEnable::Disable;
                 run_gas = BME68xGasEnable::Disable;
             }
         }
 
-        ctrl_gas_data[0] = set_bits(ctrl_gas_data[0], BME68X_HCTRL_MSK, BME68X_HCTRL_POS, hctrl);
+        ctrl_gas_data[0] = set_bits(
+            ctrl_gas_data[0],
+            BME68X_HCTRL_MSK,
+            BME68X_HCTRL_POS,
+            hctrl.into(),
+        );
         ctrl_gas_data[1] = set_bits_pos_0(ctrl_gas_data[1], BME68X_NBCONV_MSK, nb_conv);
         ctrl_gas_data[1] = set_bits(
             ctrl_gas_data[1],
