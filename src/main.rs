@@ -169,6 +169,7 @@ fn main() {
 
     bme.init().unwrap();
     bme.selftest_check().unwrap();
+    log::info!("Finished Self Test");
     test_forced(&mut bme);
     test_parallel(&mut bme);
     test_sequential(&mut bme);

@@ -1089,9 +1089,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     pub fn init(&mut self) -> Result<(), BME68xError> {
         self.soft_reset()?;
 
-        let mut data = [0; 1];
-        self.get_regs(BME68xRegister::ChipId.into(), &mut data)?;
-        self.chip_id = data[0];
+        self.chip_id = self.get_reg(BME68xRegister::ChipId)?;
         if self.chip_id == BME68X_CHIP_ID {
             self.read_variant_id()?;
             self.get_calib_data()
@@ -1100,7 +1098,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         }
     }
 
-    /// Write the given data to teh registers address of the sensor.
+    /// Write the given data to the registers of the sensor.
     ///
     /// # Arguments
     /// * `reg_addr`: Register addresess to write data to
@@ -1118,6 +1116,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
         // FIXME: Proper spi support
         let mut tmp_buff = [0; BME68X_LEN_INTERLEAVE_BUFF];
         if (len > 0) && (len <= (BME68X_LEN_INTERLEAVE_BUFF / 2)) {
+            // Data is interwoven in the form (reg, data, reg, data, reg, data, ...)
+            // FIXME: Re-Write to not require fixed length array? use iter?
             for index in 0..len {
                 if matches!(self.intf, BME68xIntf::SPIIntf) {
                     self.set_mem_page(reg_addr[index])?;
@@ -1127,6 +1127,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 }
                 tmp_buff[(2 * index) + 1] = reg_data[index];
             }
+
             let result = self.i2c.write(self.address.into(), &tmp_buff[0..(2 * len)]);
             if result.is_ok() {
                 self.intf_rslt = BME68xError::Ok;
@@ -1137,6 +1138,35 @@ impl<I2C: I2c> BME68xDev<I2C> {
             }
         } else {
             Err(BME68xError::InvalidLength)
+        }
+    }
+
+    /// Write a byte to the given register.
+    ///
+    /// # Arguments
+    /// * `reg_addr`: The register to write data to
+    /// * `data`: The byte of data to write.
+    ///
+    /// # Errorrs
+    /// Errors if writing to the register failed
+    fn set_reg(&mut self, reg_addr: BME68xRegister, data: u8) -> Result<(), BME68xError> {
+        // Convert register to u8
+        let mut reg_addr = u8::from(reg_addr);
+        // FIXME: Proper SPI SUpport
+        if matches!(self.intf, BME68xIntf::SPIIntf) {
+            self.set_mem_page(reg_addr)?;
+            reg_addr &= BME68X_SPI_WR_MSK;
+        }
+
+        let buff = [reg_addr, data];
+
+        let result = self.i2c.write(self.address.into(), &buff);
+        if result.is_ok() {
+            self.intf_rslt = BME68xError::Ok;
+            Ok(())
+        } else {
+            self.intf_rslt = BME68xError::ComFail;
+            Err(BME68xError::ComFail)
         }
     }
 
@@ -1170,6 +1200,25 @@ impl<I2C: I2c> BME68xDev<I2C> {
         }
     }
 
+    /// Read data from a single register
+    ///
+    /// # Arguments
+    /// * `reg_addr`: The address of the register to read data from
+    ///
+    /// # Returns
+    /// The byte read from the register
+    ///
+    /// # Errors
+    /// Errors if reading from teh register failed.
+    fn get_reg(&mut self, reg_addr: BME68xRegister) -> Result<u8, BME68xError> {
+        // Convert address to u8
+        let reg_addr = u8::from(reg_addr);
+
+        let mut data = [0];
+        self.get_regs(reg_addr, &mut data)?;
+        Ok(data[0])
+    }
+
     /// Soft-Reset the sensorr
     ///
     /// # Errors
@@ -1178,11 +1227,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
         if matches!(self.intf, BME68xIntf::SPIIntf) {
             self.get_mem_page()?;
         }
-        self.set_regs(
-            &[BME68xRegister::SoftReset.into()],
-            &[BME68X_SOFT_RESET_CMD],
-            1,
-        )?;
+        self.set_reg(BME68xRegister::SoftReset, BME68X_SOFT_RESET_CMD)?;
+
         (self.delay_us)(BME68X_PERIOD_RESET);
         if matches!(self.intf, BME68xIntf::SPIIntf) {
             self.get_mem_page()?;
@@ -1201,15 +1247,13 @@ impl<I2C: I2c> BME68xDev<I2C> {
     pub fn set_op_mode(&mut self, op_mode: BME68xOpMode) -> Result<(), BME68xError> {
         let mut tmp_pow_mode;
         loop {
-            let mut data = [0; 1];
-            self.get_regs(BME68xRegister::CtrlMeas.into(), &mut data)?;
-            tmp_pow_mode = data[0];
+            tmp_pow_mode = self.get_reg(BME68xRegister::CtrlMeas)?;
             let pow_mode: BME68xOpMode = (tmp_pow_mode & BME68X_MODE_MSK).into();
 
             if !matches!(pow_mode, BME68xOpMode::SleepMode) {
                 // In rust ! is bitwise not
                 tmp_pow_mode &= !BME68X_MODE_MSK; /* Set to sleep */
-                self.set_regs(&[BME68xRegister::CtrlMeas.into()], &[tmp_pow_mode], 1)?;
+                self.set_reg(BME68xRegister::CtrlMeas, tmp_pow_mode)?;
                 (self.delay_us)(BME68X_PERIOD_POLL);
             } else {
                 break;
@@ -1218,7 +1262,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         /* Already in sleep */
         if !matches!(op_mode, BME68xOpMode::SleepMode) {
             tmp_pow_mode = (tmp_pow_mode & !BME68X_MODE_MSK) | (op_mode as u8 & BME68X_MODE_MSK);
-            self.set_regs(&[BME68xRegister::CtrlMeas.into()], &[tmp_pow_mode], 1)?;
+            self.set_reg(BME68xRegister::CtrlMeas, tmp_pow_mode)?;
         }
         Ok(())
     }
@@ -1231,9 +1275,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Errors
     /// Returns an error if getting the operation mode fails
     pub fn get_op_mode(&mut self) -> Result<BME68xOpMode, BME68xError> {
-        let mut data = [0; 1];
-        self.get_regs(BME68xRegister::CtrlMeas.into(), &mut data)?;
-        let output = data[0];
+        let output = self.get_reg(BME68xRegister::CtrlMeas)?;
         Ok(BME68xOpMode::from(output & BME68X_MODE_MSK))
     }
 
@@ -1720,9 +1762,8 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Errors
     /// Errors if reading the register failed
     fn read_variant_id(&mut self) -> Result<(), BME68xError> {
-        let mut data = [0; 1];
-        self.get_regs(BME68xRegister::VariantId.into(), &mut data)?;
-        self.variant_id = BME68xVariant::from(data[0]);
+        let data = self.get_reg(BME68xRegister::VariantId)?;
+        self.variant_id = BME68xVariant::from(data);
         Ok(())
     }
 
@@ -1889,6 +1930,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
             if (data.status & BME68X_NEW_DATA_MSK) != 0 {
                 let mut reg = [0; 1];
+                // FIXME: FIgure out how to use get_Reg instead of get_Regs here.
                 self.get_regs(
                     (u8::from(BME68xRegister::ResHeat0)) + data.gas_index,
                     &mut reg,
@@ -2092,7 +2134,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                     nb_conv = conf.profile_len;
                     write_len = conf.profile_len;
                     let shared_dur = calc_heatr_dur_shared(conf.shared_heatr_dur);
-                    self.set_regs(&[BME68xRegister::ShdHeatrDur.into()], &[shared_dur], 1)?;
+                    self.set_reg(BME68xRegister::ShdHeatrDur, shared_dur)?;
                 }
             }
             BME68xOpMode::SleepMode => return Err(BME68xError::DefineOpMode),
