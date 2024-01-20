@@ -66,12 +66,6 @@ const BME68X_VARIANT_GAS_LOW: u32 = 0x00;
 /// High Gas Variant
 const BME68X_VARIANT_GAS_HIGH: u32 = 0x01;
 
-// TODO: Make these an enum
-/// SPI Memory Page 0
-const BME68X_MEM_PAGE0: u8 = 0x10;
-/// SPI Memory Page 1
-const BME68X_MEM_PAGE1: u8 = 0x00;
-
 // Min/max values allowed for testing
 /// Min temp of 0c
 const BME68X_MIN_TEMPERATURE: f32 = 0.0;
@@ -325,6 +319,33 @@ pub enum BME68xAddr {
 
     /// High Address
     HIGH = 0x77,
+}
+
+/// Enumeration of the memory pages for SPI mode
+#[repr(u8)]
+#[derive(Clone, Copy)]
+enum BME68xMemPage {
+    /// SPI Memory Page 0
+    Page0 = 0x10,
+
+    /// SPI Memory Page 1
+    Page1 = 0x00,
+}
+
+impl From<u8> for BME68xMemPage {
+    fn from(value: u8) -> Self {
+        match value {
+            0x10 => Self::Page0,
+            0x00 => Self::Page1,
+            _ => panic!("Cannot convert {value} to a BME68xMemPage"),
+        }
+    }
+}
+
+impl From<BME68xMemPage> for u8 {
+    fn from(value: BME68xMemPage) -> Self {
+        value as u8
+    }
 }
 
 /// Chip Error codes
@@ -901,7 +922,7 @@ pub struct BME68xDev<I2C> {
     intf: BME68xIntf,
 
     /// Memory page used
-    mem_page: u8,
+    mem_page: BME68xMemPage,
 
     /// Ambient Temperature in degrees C
     amb_temp: i8,
@@ -948,7 +969,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             amb_temp,
             variant_id: 0,
             intf,
-            mem_page: 0,
+            mem_page: BME68xMemPage::Page0,
             calib: BME68xCalibData::new(),
             intf_rslt: BME68xError::Ok,
             info_msg: BME68xError::Ok,
@@ -1778,12 +1799,16 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// Switch between SPI memory pages
     fn set_mem_page(&mut self, reg_addr: u8) -> Result<(), BME68xError> {
         let mem_page = if reg_addr > 0x7f {
-            BME68X_MEM_PAGE1
+            BME68xMemPage::Page1
         } else {
-            BME68X_MEM_PAGE0
+            BME68xMemPage::Page0
         };
 
-        if mem_page != self.mem_page {
+        // IDK why it is complaining here, I'm passing it in.
+        #[allow(unused_variables)]
+        let page_match = matches!(self.mem_page, mem_page);
+
+        if !page_match {
             self.mem_page = mem_page;
             let write_buffer = [u8::from(BME68xRegister::MemPage) | BME68X_SPI_RD_MSK];
             let mut read_buffer = [0];
@@ -1792,7 +1817,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
                 .write_read(self.address.into(), &write_buffer, &mut read_buffer);
             if result.is_ok() {
                 let reg = read_buffer[0] & (!BME68X_MEM_PAGE_MSK);
-                let reg = reg | (self.mem_page & BME68X_MEM_PAGE_MSK);
+                let reg = reg | (u8::from(self.mem_page) & BME68X_MEM_PAGE_MSK);
 
                 let write_buffer = [u8::from(BME68xRegister::MemPage) & BME68X_SPI_WR_MSK, reg];
                 let result = self.i2c.write(self.address.into(), &write_buffer);
@@ -1821,7 +1846,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             &mut read_buffer,
         );
         if result.is_ok() {
-            self.mem_page = read_buffer[0] & BME68X_MEM_PAGE_MSK;
+            self.mem_page = BME68xMemPage::from(read_buffer[0] & BME68X_MEM_PAGE_MSK);
             Ok(())
         } else {
             Err(BME68xError::ComFail)
