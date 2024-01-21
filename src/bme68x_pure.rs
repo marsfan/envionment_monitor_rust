@@ -1056,6 +1056,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `amb_temp`: Ambient temperature to use for compensation, in degrees C. 25 is a safe value for this
     /// * `intf`: The interface type to use for communication
     /// * `delay_us`: Function to use for performing delay in microseconds.
+    ///
+    /// # Returns
+    /// A new instance of the sensor structure
     pub fn new(
         bus: I2C,
         address: BME68xAddr,
@@ -1149,7 +1152,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `reg_addr`: The register to write data to
     /// * `data`: The byte of data to write.
     ///
-    /// # Errorrs
+    /// # Errors
     /// Errors if writing to the register failed
     fn set_reg(&mut self, reg_addr: BME68xRegister, data: u8) -> Result<(), BME68xError> {
         // Convert register to u8
@@ -1284,6 +1287,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Arguments
     /// * `op_mode`: The operation mode of the sensor
     /// * `conf`: The sensor configuration.
+    ///
+    /// # Returns
+    /// The measurement duration that can be used for heating
     pub fn get_meas_dur(&self, op_mode: BME68xOpMode, conf: &BME68xConf) -> u32 {
         let mut meas_dur;
 
@@ -1314,6 +1320,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// number of read elements
     ///
     /// # Errors
+    /// Returns an error if reading the sensor data fails
     pub fn get_data(
         &mut self,
         op_mode: BME68xOpMode,
@@ -1549,11 +1556,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
 
         let mut data = [0; MAX_PROFILE_LEN];
 
-        // FIXME: Pass in profile len conf, like in the original API.
         self.get_regs(BME68xRegister::ResHeat0.into(), &mut data)?;
         conf.heatr_temp_prof = data.map(std::convert::Into::into);
 
-        // FIXME: Pass in profile len conf, like in the original API.
         self.get_regs(BME68xRegister::GasWait0.into(), &mut data)?;
         conf.heatr_dur_prof = data.map(std::convert::Into::into);
 
@@ -1653,10 +1658,6 @@ impl<I2C: I2c> BME68xDev<I2C> {
         }
         analyze_sensor_data(&data, BME68X_N_MEAS)
     }
-
-    /*------------------------------------------------------------
-     *                       Private Functions
-     *-----------------------------------------------------------*/
 
     /// Read the calibration coefficents
     ///
@@ -1771,7 +1772,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `temp_adc`: The raw ADC Temperature
     ///
     /// Returns
-    /// The temperature as a float
+    /// The temperature in degrees celsius as a float
     fn calc_temperature(&mut self, temp_adc: u32) -> f32 {
         let par_t1_f32 = f32::from(self.calib.par_t1);
         let par_t3_f32 = f32::from(self.calib.par_t3);
@@ -1794,7 +1795,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// * `pres_adc`: Raw pressure ADC value
     ///
     /// # Returns
-    /// Pressure value as a float
+    /// Pressure in pascals as a float
     fn calc_pressure(&self, pres_adc: u32) -> f32 {
         let var1 = (self.calib.t_fine / 2.0) - 64000.0;
         let var2 = var1 * var1 * (f32::from(self.calib.par_p6) / 131072.0);
@@ -1825,6 +1826,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Arguments
     /// * `hum_adc`: Raw humidty ADC value
+    ///
+    /// # Returns
+    /// The percent humidity as a floating point.
     fn calc_humidity(&self, hum_adc: u32) -> f32 {
         let temp_comp = (self.calib.t_fine) / 5120.0;
 
@@ -1854,6 +1858,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Arguments:
     /// * `gas_res_adc`: Raw ADC gas resistance value
     /// * `gas_range`: The gas range to use for the calculation
+    ///
+    /// # Returns
+    /// The low gas resistance as a float
     fn calc_gas_resistance_low(&self, gas_res_adc: u16, gas_range: u8) -> f32 {
         let gas_res_f = f32::from(gas_res_adc);
         let gas_range_f = cast_i2f32(1 << gas_range);
@@ -1875,6 +1882,9 @@ impl<I2C: I2c> BME68xDev<I2C> {
     ///
     /// # Arguments
     ///  * `temp`: The temperature
+    ///
+    /// # Returns
+    /// Heater resistance value to set into the integer
     fn calc_res_heat(&self, temp: u16) -> u8 {
         let temp = if temp > 400 { 400.0 } else { f32::from(temp) };
 
@@ -1895,6 +1905,14 @@ impl<I2C: I2c> BME68xDev<I2C> {
     }
 
     /// Read a single data from teh senssor
+    ///
+    /// # Arguments
+    /// * `index`: The index of the field to read
+    /// * `data`: The data field to populate with data
+    ///
+    /// # Errors
+    /// Returns an error if reading the field failed.
+    // TODO: Return data instead of using a buffer
     fn read_field_data(&mut self, index: u8, data: &mut BME68xData) -> Result<(), BME68xError> {
         let mut tries = 5;
         while tries > 0 {
@@ -1970,6 +1988,13 @@ impl<I2C: I2c> BME68xDev<I2C> {
     }
 
     /// Read all data fields of the sensor
+    ///
+    /// # Arguments
+    /// * `data`: Buffer to populate with the read data
+    ///
+    /// # Errors
+    /// Returns an error if reading the data failed
+    // TODO: Return instead of using a mutable buffer
     fn read_all_field_data(&mut self, data: &mut [BME68xData; 3]) -> Result<(), BME68xError> {
         let mut buff = [0; BME68X_LEN_FIELD * 3];
         let mut set_val = [0; 30];
@@ -2027,6 +2052,12 @@ impl<I2C: I2c> BME68xDev<I2C> {
     }
 
     /// Switch between SPI memory pages
+    ///
+    /// # Arguments
+    /// * `reg_addr`: The address of the register to read/write from.
+    ///
+    /// # Errors
+    /// Returns an error if switchign memeory pages fails.
     fn set_mem_page(&mut self, reg_addr: u8) -> Result<(), BME68xError> {
         let mem_page = if reg_addr > 0x7f {
             BME68xMemPage::Page1
@@ -2067,7 +2098,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
         }
     }
 
-    /// Get The current SPI memory page
+    /// Get The current SPI memory page and update the internal structure
+    ///
+    /// # Errors
+    /// Returns an error if reading the current memory page failed.
     fn get_mem_page(&mut self) -> Result<(), BME68xError> {
         let mut read_buffer = [0];
         let result = self.i2c.write_read(
@@ -2084,6 +2118,17 @@ impl<I2C: I2c> BME68xDev<I2C> {
     }
 
     /// Set heater configuration
+    ///
+    /// # Arguments
+    /// * `conf`: The heater configuration to set.
+    /// * `op_mode`: The sensor operating mode to use
+    ///
+    /// # Returns
+    /// The number of conversions that will be performed for the given sensor
+    /// configuration.
+    ///
+    /// # Errors
+    /// Returns an error if setting the heater configuration fails
     fn set_conf(
         &mut self,
         conf: &BME68xHeatrConf,
@@ -2146,6 +2191,12 @@ impl<I2C: I2c> BME68xDev<I2C> {
 }
 
 /// Caclulate register value for shared heater duration
+///
+/// # Arguments
+/// * `dur`: The heating duration to use
+///
+/// # Returns
+/// The register value to set
 fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
     let mut factor = 0;
     let heatdurval;
@@ -2168,8 +2219,13 @@ fn calc_heatr_dur_shared(mut dur: u16) -> u8 {
     heatdurval
 }
 
-// TODO: Document properly
-/// Calcualte gas wait time
+/// Register value to use for the gas wait time
+///
+/// # Arguments
+/// * `dur`: The gas wait time to use
+///
+/// # Returns
+/// The register value to set
 fn calc_gas_wait(mut dur: u16) -> u8 {
     let mut factor = 0;
     if dur >= 0xfc0 {
@@ -2185,6 +2241,11 @@ fn calc_gas_wait(mut dur: u16) -> u8 {
 }
 
 /// Sort the sensor data
+///
+/// # Arguments
+/// * `low_index`: The low index of the data to sort
+/// * `high_index`: The high index of the data to sort.
+/// * `field`: The fields of data to sort
 fn sort_sensor_data(low_index: usize, high_index: usize, field: &mut [BME68xData]) {
     let meas_index1 = i16::from(field[low_index].meas_index);
     let meas_index2 = i16::from(field[high_index].meas_index);
@@ -2244,6 +2305,9 @@ fn analyze_sensor_data(data: &[BME68xData], n_meas: usize) -> Result<(), BME68xE
 /// # Arguments:
 /// * `gas_res_adc`: Raw ADC gas resistance value
 /// * `gas_range`: The gas range to use for the calculation
+///
+/// # Returns
+/// The gas resistance high value
 fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
     let var1: u32 = 262144 >> gas_range;
     let var2: i32 = i32::from(gas_res_adc) - 512;
@@ -2257,6 +2321,9 @@ fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
 /// # Arguments
 /// * `msb`: The most significant bit
 /// * `lsb`: The least significant bit
+///
+/// # Returns
+/// The concatenated bytes
 #[allow(clippy::similar_names)]
 #[inline(always)]
 fn concat_bytes(msb: u8, lsb: u8) -> u16 {
@@ -2264,18 +2331,42 @@ fn concat_bytes(msb: u8, lsb: u8) -> u16 {
 }
 
 /// Set bits for a register
+///
+/// # Arguments
+/// * `reg_data`: The current register value
+/// * `bitmask`: The mask of the register bits to set
+/// * `bitpos`: The shift to apply to the data to set
+/// * `data`: The data to set into the register.
+///
+/// # Returns
+/// The new value for the register.
 #[inline(always)]
 fn set_bits(reg_data: u8, bitmask: u8, bitpos: u8, data: u8) -> u8 {
     (reg_data & !(bitmask)) | ((data << bitpos) & bitmask)
 }
 
 /// Set bits starting from position 0
+/// # Arguments
+/// * `reg_data`: The current register value
+/// * `bitmask`: The mask of the register bits to set
+/// * `data`: The data to set into the register.
+///
+/// # Returns
+/// The new value for the register.
 #[inline(always)]
 fn set_bits_pos_0(reg_data: u8, bitmask: u8, data: u8) -> u8 {
     (reg_data & !(bitmask)) | (data & bitmask)
 }
 
 /// Get bits starting from positon 0
+///
+/// # Arguments
+/// * `reg_data`: The register to extract the bits from
+/// * `bitmask`: The mask of bits to extract
+/// * `bitpos`: The shift of the bits to extract.
+///
+/// # Returns
+/// Bits extracted from the register
 #[inline(always)]
 fn get_bits(reg_data: u8, bitmask: u8, bitpos: u8) -> u8 {
     (reg_data & bitmask) >> bitpos
