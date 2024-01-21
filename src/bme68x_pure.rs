@@ -2200,34 +2200,6 @@ fn sort_sensor_data(low_index: usize, high_index: usize, field: &mut [BME68xData
     }
 }
 
-/// Concatenate two u8 into a u16
-///
-/// # Arguments
-/// * `msb`: The most significant bit
-/// * `lsb`: The least significant bit
-// FIXME: Convert this to a macro.
-#[allow(clippy::similar_names)]
-fn concat_bytes(msb: u8, lsb: u8) -> u16 {
-    (u16::from(msb) << 8) | u16::from(lsb)
-}
-
-/// Set bits for a register
-// FIXME: Convert this to a macro
-fn set_bits(reg_data: u8, bitmask: u8, bitpos: u8, data: u8) -> u8 {
-    (reg_data & !(bitmask)) | ((data << bitpos) & bitmask)
-}
-
-/// Set bits starting from position 0
-fn set_bits_pos_0(reg_data: u8, bitmask: u8, data: u8) -> u8 {
-    (reg_data & !(bitmask)) | (data & bitmask)
-}
-
-/// Get bits starting from positon 0
-// FIXME: Convert to macro
-fn get_bits(reg_data: u8, bitmask: u8, bitpos: u8) -> u8 {
-    (reg_data & bitmask) >> bitpos
-}
-
 /// Analyze the sensor data
 ///
 /// # Arguments
@@ -2280,6 +2252,35 @@ fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
     1000000.0 * cast_u2f32(var1) / cast_i2f32(var2)
 }
 
+/// Concatenate two u8 into a u16
+///
+/// # Arguments
+/// * `msb`: The most significant bit
+/// * `lsb`: The least significant bit
+#[allow(clippy::similar_names)]
+#[inline(always)]
+fn concat_bytes(msb: u8, lsb: u8) -> u16 {
+    (u16::from(msb) << 8) | u16::from(lsb)
+}
+
+/// Set bits for a register
+#[inline(always)]
+fn set_bits(reg_data: u8, bitmask: u8, bitpos: u8, data: u8) -> u8 {
+    (reg_data & !(bitmask)) | ((data << bitpos) & bitmask)
+}
+
+/// Set bits starting from position 0
+#[inline(always)]
+fn set_bits_pos_0(reg_data: u8, bitmask: u8, data: u8) -> u8 {
+    (reg_data & !(bitmask)) | (data & bitmask)
+}
+
+/// Get bits starting from positon 0
+#[inline(always)]
+fn get_bits(reg_data: u8, bitmask: u8, bitpos: u8) -> u8 {
+    (reg_data & bitmask) >> bitpos
+}
+
 /// Convert a u8 to an i8, allowing wrapping.
 ///
 /// This exists to reduce the number of clippy errors in this file,
@@ -2291,7 +2292,7 @@ fn calc_gas_resistance_high(gas_res_adc: u16, gas_range: u8) -> f32 {
 ///
 /// # Returns
 /// The converted value
-// TODO: Turn into a macro?
+#[inline(always)]
 fn wrap_u2i8(value: u8) -> i8 {
     #[allow(clippy::cast_possible_wrap)]
     (value as i8)
@@ -2308,7 +2309,7 @@ fn wrap_u2i8(value: u8) -> i8 {
 ///
 /// # Returns
 /// The converted value
-// TODO: Turn into a macro?
+#[inline(always)]
 fn wrap_u2i16(value: u16) -> i16 {
     #[allow(clippy::cast_possible_wrap)]
     (value as i16)
@@ -2324,7 +2325,7 @@ fn wrap_u2i16(value: u16) -> i16 {
 ///
 /// # Returns
 /// The converted value
-// TODO: Turn into a macro?
+#[inline(always)]
 fn cast_u2f32(value: u32) -> f32 {
     #[allow(clippy::cast_precision_loss)]
     (value as f32)
@@ -2340,7 +2341,7 @@ fn cast_u2f32(value: u32) -> f32 {
 ///
 /// # Returns
 /// The converted value
-// TODO: Turn into a macro?
+#[inline(always)]
 fn cast_i2f32(value: i32) -> f32 {
     #[allow(clippy::cast_precision_loss)]
     (value as f32)
