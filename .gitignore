@@ -2,3 +2,5 @@
 /.embuild
 /target
 /Cargo.lock
+src/bsec/inc
+src/bsec/bin
