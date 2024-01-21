@@ -1,6 +1,6 @@
 //! Environment Monitoring application
 use embedded_hal::i2c::I2c;
-use environment_monitor_rust::bme68x_pure::{
+use environment_monitor_rust::bme68x::{
     BME68xAddr, BME68xConf, BME68xDev, BME68xFilter, BME68xHeatrConf, BME68xIntf, BME68xODR,
     BME68xOpMode, BME68xOs,
 };
