@@ -708,7 +708,7 @@ impl From<u8> for BME68xOpMode {
 }
 
 /// Sensor Field Data Structure
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct BME68xData {
     /// Sensor Status (new_data, gasm_valid, heat_stab)
     pub status: u8,
@@ -1329,11 +1329,11 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let mut data = [BME68xData::new(); 3];
         match op_mode {
             BME68xOpMode::ForcedMode => {
-                self.read_field_data(0, &mut data[0])?;
+                data[0] = self.read_field_data(0)?;
                 new_fields = 1;
             }
             BME68xOpMode::ParallelMode | BME68xOpMode::SequentialMode => {
-                self.read_all_field_data(&mut data)?;
+                data = self.read_all_field_data()?;
 
                 // TODO: Check over this. Probably a way to do it properly in rust.
                 // Sort sensor data
@@ -1904,17 +1904,19 @@ impl<I2C: I2c> BME68xDev<I2C> {
         result
     }
 
-    /// Read a single data from teh senssor
+    /// Read a single data from the senssor
     ///
     /// # Arguments
     /// * `index`: The index of the field to read
-    /// * `data`: The data field to populate with data
+    ///
+    /// # Returns
+    /// The data read from the sensor
     ///
     /// # Errors
     /// Returns an error if reading the field failed.
-    // TODO: Return data instead of using a buffer
-    fn read_field_data(&mut self, index: u8, data: &mut BME68xData) -> Result<(), BME68xError> {
+    fn read_field_data(&mut self, index: u8) -> Result<BME68xData, BME68xError> {
         let mut tries = 5;
+        let mut data = BME68xData::new();
         while tries > 0 {
             let mut buff = [0; BME68X_LEN_FIELD];
             let reg_addr: u8 =
@@ -1984,7 +1986,11 @@ impl<I2C: I2c> BME68xDev<I2C> {
             (self.delay_us)(BME68X_PERIOD_POLL);
             tries -= 1;
         }
-        Ok(())
+        if (tries == 0) && (data == BME68xData::new()) {
+            Err(BME68xError::NoNewData)
+        } else {
+            Ok(data)
+        }
     }
 
     /// Read all data fields of the sensor
@@ -1992,12 +1998,15 @@ impl<I2C: I2c> BME68xDev<I2C> {
     /// # Arguments
     /// * `data`: Buffer to populate with the read data
     ///
+    /// # Returns
+    /// The data read from the fields.
+    ///
     /// # Errors
     /// Returns an error if reading the data failed
-    // TODO: Return instead of using a mutable buffer
-    fn read_all_field_data(&mut self, data: &mut [BME68xData; 3]) -> Result<(), BME68xError> {
+    fn read_all_field_data(&mut self) -> Result<[BME68xData; 3], BME68xError> {
         let mut buff = [0; BME68X_LEN_FIELD * 3];
         let mut set_val = [0; 30];
+        let mut data = [BME68xData::new(); 3];
         self.get_regs(BME68xRegister::Field0.into(), &mut buff)?;
 
         self.get_regs(BME68xRegister::IdacHeat0.into(), &mut set_val)?;
@@ -2048,7 +2057,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
             }
         }
 
-        Ok(())
+        Ok(data)
     }
 
     /// Switch between SPI memory pages
