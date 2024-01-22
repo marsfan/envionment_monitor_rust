@@ -39,9 +39,11 @@ esp-idf-hal = "0.42.5"
 # FIXME: Bump to 1.0.0 once esp-idf-hal supports it
 embedded-hal = "1.0.0-rc.1"
 thiserror = "1.0.56"
+esp-idf-sys = "0.33.7"
 
 [build-dependencies]
 embuild = "0.31.3"
+
 
 [lints.rust]
 missing_docs = "warn"
