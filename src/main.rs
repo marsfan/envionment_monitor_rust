@@ -1,11 +1,8 @@
 //! Environment Monitoring application
 
-use environment_monitor_rust::veml7700::{Veml7700, VemlConfigReg};
+use environment_monitor_rust::veml7700::Veml7700;
 use std::sync::Mutex;
 
-// use environment_monitor_rust::bsec::bsec_datatypes_bindings::BSEC_SAMPLE_RATE_LP;
-// FIXME: Use MutexDevice once we can update the embedded-hal-bus version
-// use embedded_hal_bus::i2c;
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec::bsec_datatypes_bindings::BSEC_SAMPLE_RATE_LP;
 use environment_monitor_rust::bsec::{Bsec, BsecVirtualSensorData};
