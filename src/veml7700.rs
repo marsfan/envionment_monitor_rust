@@ -267,7 +267,6 @@ impl<I2C: I2c> Veml7700<I2C> {
     ///
     /// # Errors
     /// Will return an error if the I2C Transation Fails
-    // TODO: Need logic to actually build the structure
     pub fn get_configuration(&mut self) -> Result<VemlConfigReg, I2C::Error> {
         let result = self.write_read_u16(VemlRegister::Config)?;
         Ok(VemlConfigReg::from(result))
