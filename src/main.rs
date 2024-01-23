@@ -1,6 +1,12 @@
 //! Environment Monitoring application
 
+use environment_monitor_rust::veml7700::{Veml7700, VemlConfigReg};
+use std::sync::Mutex;
+
 // use environment_monitor_rust::bsec::bsec_datatypes_bindings::BSEC_SAMPLE_RATE_LP;
+// FIXME: Use MutexDevice once we can update the embedded-hal-bus version
+// use embedded_hal_bus::i2c;
+use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec::bsec_datatypes_bindings::BSEC_SAMPLE_RATE_LP;
 use environment_monitor_rust::bsec::{Bsec, BsecVirtualSensorData};
 use esp_idf_hal::delay::FreeRtos;
@@ -27,12 +33,18 @@ fn main() {
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    let mut bsec = Bsec::new(i2c_driver, 25.0);
+    let i2c_mutex = Mutex::new(i2c_driver);
+    let bsec_i2c = MutexDevice::new(&i2c_mutex);
+    let veml_i2c = MutexDevice::new(&i2c_mutex);
+
+    let mut bsec = Bsec::new(bsec_i2c, 25.0);
+    let mut veml = Veml7700::new(veml_i2c, 1000);
+
+    veml.set_power_state(false).unwrap();
 
     log::info!("Starting BSEC");
     bsec.init().unwrap();
     bsec.subscribe_all_non_scan(BSEC_SAMPLE_RATE_LP).unwrap();
-
     let version = bsec.get_version().unwrap();
     log::info!(
         "BSEC Version: {}.{}.{}.{}",
@@ -61,6 +73,16 @@ fn main() {
         log_signal("Run In Status", data.run_in_status);
         log_signal("Stabilization", data.stabilization_status);
         log_signal("Raw Temp", data.raw_temp);
+
+        veml.periodic_process();
+        log::info!("LUX: {}", veml.get_lux().unwrap());
+        let veml_data = veml.get_outputs();
+        log::info!(
+            "Veml ALS: {}, White: {}, lux: {}",
+            veml_data.raw_als,
+            veml_data.raw_white,
+            veml_data.lux
+        );
 
         let remaining_time =
             bsec.get_next_call_time_us() - unsafe { esp_idf_sys::esp_timer_get_time() };
