@@ -1,7 +1,8 @@
 //! Environment Monitoring application
 
 use environment_monitor_rust::veml7700::Veml7700;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
+use std::thread;
 
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec::bsec_datatypes_bindings::BSEC_SAMPLE_RATE_LP;
@@ -30,14 +31,32 @@ fn main() {
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    let i2c_mutex = Mutex::new(i2c_driver);
-    let bsec_i2c = MutexDevice::new(&i2c_mutex);
-    let veml_i2c = MutexDevice::new(&i2c_mutex);
+    // TODO: Was suggested also trying this.(declaring a `&'static Mutex`).
+    // Seems I'm supposed to use lazy_static somehow.
+    // let i2c_mutex: &'static Mutex<I2cDriver> = &Mutex::new(i2c_driver);
+    // let bsec_i2c = i2c_mutex.clone();
+    // let veml_i2c = i2c_mutex.clone();
+    let i2c_mutex = Arc::new(Mutex::new(i2c_driver));
+    let bsec_i2c = i2c_mutex.clone();
+    let veml_i2c = i2c_mutex.clone();
 
-    let mut bsec = Bsec::new(bsec_i2c, 25.0);
-    let mut veml = Veml7700::new(veml_i2c, 1000);
+    // Start the sensor threads.
+    thread::Builder::new()
+        .name("BSEC Thread".to_string())
+        .stack_size(4096)
+        .spawn(move || bsec_task(bsec_i2c))
+        .unwrap();
 
-    veml.set_power_state(false).unwrap();
+    thread::Builder::new()
+        .name("VEML Thread".to_string())
+        .stack_size(2048)
+        .spawn(move || veml_task(veml_i2c))
+        .unwrap();
+}
+
+fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>) {
+    let i2c_driver = MutexDevice::new(&i2c_handle);
+    let mut bsec = Bsec::new(i2c_driver, 25.0);
 
     log::info!("Starting BSEC");
     bsec.init().unwrap();
@@ -70,7 +89,19 @@ fn main() {
         log_signal("Run In Status", data.run_in_status);
         log_signal("Stabilization", data.stabilization_status);
         log_signal("Raw Temp", data.raw_temp);
+        let remaining_time =
+            bsec.get_next_call_time_us() - unsafe { esp_idf_sys::esp_timer_get_time() };
 
+        FreeRtos::delay_us(remaining_time.try_into().unwrap());
+    }
+}
+
+fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>) {
+    let i2c_driver = MutexDevice::new(&i2c_handle);
+    let mut veml = Veml7700::new(i2c_driver, 1000);
+    veml.set_power_state(false).unwrap();
+
+    loop {
         veml.periodic_process();
         log::info!("LUX: {}", veml.get_lux().unwrap());
         let veml_data = veml.get_outputs();
@@ -81,10 +112,7 @@ fn main() {
             veml_data.lux
         );
 
-        let remaining_time =
-            bsec.get_next_call_time_us() - unsafe { esp_idf_sys::esp_timer_get_time() };
-
-        FreeRtos::delay_us(remaining_time.try_into().unwrap());
+        FreeRtos::delay_ms(1000);
     }
 }
 
