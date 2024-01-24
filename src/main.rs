@@ -33,6 +33,17 @@ fn main() {
 
     // TODO: Was suggested also trying this.(declaring a `&'static Mutex`).
     // Seems I'm supposed to use lazy_static somehow.
+    // Was told the following
+    /* The Arc will Drop the inner type when you are
+    done using it from all threads, but a &'static
+    will stick around forever. This might be important
+    if dropping the i2c driver disables the peripheral
+    in order to reduce power usage. The embassy HALs do
+    this for example, but I don't know if the esp hal does */
+    // and
+    /* A &'static T can be copied for free, but that doesn't
+    matter too much since it is super cheap to clone an Arc */
+    //
     // let i2c_mutex: &'static Mutex<I2cDriver> = &Mutex::new(i2c_driver);
     // let bsec_i2c = i2c_mutex.clone();
     // let veml_i2c = i2c_mutex.clone();
@@ -54,6 +65,11 @@ fn main() {
         .unwrap();
 }
 
+/// Task for processing data from the BME688 with BSEC
+///
+/// # Arguments
+/// * `i2c_handle`: Handle to a Mutex-protected I2C driver used to
+///     communicate with the sensor.
 fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>) {
     let i2c_driver = MutexDevice::new(&i2c_handle);
     let mut bsec = Bsec::new(i2c_driver, 25.0);
@@ -96,6 +112,11 @@ fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>) {
     }
 }
 
+/// Task for reading data from the VEML7700 sensor.
+///
+/// # Arguments
+/// * `i2c_handle`: Handle to a Mutex-protected I2C driver used to
+///     communicate with the sensor.
 fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>) {
     let i2c_driver = MutexDevice::new(&i2c_handle);
     let mut veml = Veml7700::new(i2c_driver, 1000);
