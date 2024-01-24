@@ -209,6 +209,17 @@ pub struct VemlOutput {
     pub lux: f32,
 }
 
+impl VemlOutput {
+    /// Create a new empty instance of the structure.
+    pub fn new() -> Self {
+        Self {
+            raw_als: 0,
+            raw_white: 0,
+            lux: 0.0,
+        }
+    }
+}
+
 /// Main structure for the VEML7700
 pub struct Veml7700<I2C> {
     /// Concrete I2C implementation

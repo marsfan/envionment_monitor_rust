@@ -22,7 +22,7 @@ use self::bsec_interface_bindings::*;
 /// additional benefit of also having a .valid member to indicate if the given
 /// output signal was provided at the most recent periodic processing iteration
 /// See the documentation for `bsec_output_t` for further details
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct BsecVirtualSensorData {
     /// Time stamp in ns of the signal generation
     pub time_stamp: i64,
@@ -59,7 +59,7 @@ impl BsecVirtualSensorData {
 /// sensor output does not require searching through the array
 /// See `bsec_virtual_sensor_t`  in the BSEC documentation for information about
 /// virtual sensors
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct BsecStructuredOutputs {
     /// Indoor air quality
     pub iaq: BsecVirtualSensorData,
