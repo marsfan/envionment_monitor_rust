@@ -20,8 +20,8 @@ use crate::bme68x::{
 /// additional benefit of also having a .valid member to indicate if the given
 /// output signal was provided at the most recent periodic processing iteration
 /// See the documentation for `bsec_output_t` for further details
-#[derive(Debug, Clone, Copy)]
-pub struct BsecVirtualSensorData {
+#[derive(Debug, Clone, Copy, Default)]
+pub struct VirtualSensorData {
     /// Time stamp in ns of the signal generation
     pub time_stamp: i64,
 
@@ -38,8 +38,9 @@ pub struct BsecVirtualSensorData {
     pub valid: bool,
 }
 
-impl BsecVirtualSensorData {
+impl VirtualSensorData {
     /// Create a new empty instance of the structure
+    #[must_use]
     pub fn new() -> Self {
         Self {
             time_stamp: 0,
@@ -57,68 +58,69 @@ impl BsecVirtualSensorData {
 /// sensor output does not require searching through the array
 /// See `bsec_virtual_sensor_t`  in the BSEC documentation for information about
 /// virtual sensors
-#[derive(Debug, Clone, Copy)]
-pub struct BsecStructuredOutputs {
+#[derive(Debug, Clone, Copy, Default)]
+pub struct StructuredOutputs {
     /// Indoor air quality
-    pub iaq: BsecVirtualSensorData,
+    pub iaq: VirtualSensorData,
     /// Unscaled indoor air quality
-    pub static_iaq: BsecVirtualSensorData,
+    pub static_iaq: VirtualSensorData,
     /// Equivlent CO2 estimate (ppm)
-    pub co2_eq: BsecVirtualSensorData,
+    pub co2_eq: VirtualSensorData,
     /// Breath VOC estimate (ppm)
-    pub breath_voc_eq: BsecVirtualSensorData,
+    pub breath_voc_eq: VirtualSensorData,
     /// Raw temperature (degrees C)
-    pub raw_temp: BsecVirtualSensorData,
+    pub raw_temp: VirtualSensorData,
     /// Raw pressure (Pa)
-    pub raw_pressure: BsecVirtualSensorData,
+    pub raw_pressure: VirtualSensorData,
     /// Raw humidity (%)
-    pub raw_humidity: BsecVirtualSensorData,
+    pub raw_humidity: VirtualSensorData,
     /// Raw gas sensor (Ohm)
-    pub raw_gas: BsecVirtualSensorData,
+    pub raw_gas: VirtualSensorData,
     /// Stabilization status
-    pub stabilization_status: BsecVirtualSensorData,
+    pub stabilization_status: VirtualSensorData,
     /// Sensor Run in status
-    pub run_in_status: BsecVirtualSensorData,
+    pub run_in_status: VirtualSensorData,
     /// Heat Compensated temp (C)
-    pub compensated_temp: BsecVirtualSensorData,
+    pub compensated_temp: VirtualSensorData,
     /// Heat Compensated Humidity (C)
-    pub compensated_humidity: BsecVirtualSensorData,
+    pub compensated_humidity: VirtualSensorData,
     /// Percentage of min/max filter gas (%)
-    pub gas_percentage: BsecVirtualSensorData,
+    pub gas_percentage: VirtualSensorData,
     /// Gas channel 1 estimate
-    pub gas_estimate_1: BsecVirtualSensorData,
+    pub gas_estimate_1: VirtualSensorData,
     /// Gas channel 2 estimate
-    pub gas_estimate_2: BsecVirtualSensorData,
+    pub gas_estimate_2: VirtualSensorData,
     /// Gas channel 3 estimate
-    pub gas_estimate_3: BsecVirtualSensorData,
+    pub gas_estimate_3: VirtualSensorData,
     /// Gas channel 4 estimate
-    pub gas_estimate_4: BsecVirtualSensorData,
+    pub gas_estimate_4: VirtualSensorData,
     /// gas heater profile index.
-    pub raw_gas_index: BsecVirtualSensorData,
+    pub raw_gas_index: VirtualSensorData,
 }
 
-impl BsecStructuredOutputs {
+impl StructuredOutputs {
     /// Create a new empty instance of the structure
+    #[must_use]
     pub fn new() -> Self {
         Self {
-            breath_voc_eq: BsecVirtualSensorData::new(),
-            co2_eq: BsecVirtualSensorData::new(),
-            compensated_humidity: BsecVirtualSensorData::new(),
-            compensated_temp: BsecVirtualSensorData::new(),
-            gas_estimate_1: BsecVirtualSensorData::new(),
-            gas_estimate_2: BsecVirtualSensorData::new(),
-            gas_estimate_3: BsecVirtualSensorData::new(),
-            gas_estimate_4: BsecVirtualSensorData::new(),
-            gas_percentage: BsecVirtualSensorData::new(),
-            iaq: BsecVirtualSensorData::new(),
-            raw_gas: BsecVirtualSensorData::new(),
-            raw_gas_index: BsecVirtualSensorData::new(),
-            raw_humidity: BsecVirtualSensorData::new(),
-            raw_pressure: BsecVirtualSensorData::new(),
-            raw_temp: BsecVirtualSensorData::new(),
-            run_in_status: BsecVirtualSensorData::new(),
-            stabilization_status: BsecVirtualSensorData::new(),
-            static_iaq: BsecVirtualSensorData::new(),
+            breath_voc_eq: VirtualSensorData::new(),
+            co2_eq: VirtualSensorData::new(),
+            compensated_humidity: VirtualSensorData::new(),
+            compensated_temp: VirtualSensorData::new(),
+            gas_estimate_1: VirtualSensorData::new(),
+            gas_estimate_2: VirtualSensorData::new(),
+            gas_estimate_3: VirtualSensorData::new(),
+            gas_estimate_4: VirtualSensorData::new(),
+            gas_percentage: VirtualSensorData::new(),
+            iaq: VirtualSensorData::new(),
+            raw_gas: VirtualSensorData::new(),
+            raw_gas_index: VirtualSensorData::new(),
+            raw_humidity: VirtualSensorData::new(),
+            raw_pressure: VirtualSensorData::new(),
+            raw_temp: VirtualSensorData::new(),
+            run_in_status: VirtualSensorData::new(),
+            stabilization_status: VirtualSensorData::new(),
+            static_iaq: VirtualSensorData::new(),
         }
     }
 }
@@ -129,7 +131,7 @@ pub struct Bsec<I2C> {
     bme: BME68xDev<I2C>,
 
     /// Output data from BSEC
-    outputs: BsecStructuredOutputs,
+    outputs: StructuredOutputs,
 
     /// Offset to apply to teh temperature measurement to correct for sensor or enclosure bias
     temp_offset: f32,
@@ -160,7 +162,7 @@ impl<I2C: I2c> Bsec<I2C> {
                 BME68xIntf::I2CIntf,
                 Box::new(FreeRtos::delay_us),
             ),
-            outputs: BsecStructuredOutputs::new(),
+            outputs: StructuredOutputs::new(),
             temp_offset,
             // FIXME: Can we create a ::new() method for this?
             sensor_settings: bsec_bme_settings_t {
@@ -184,7 +186,7 @@ impl<I2C: I2c> Bsec<I2C> {
 
     /// Initialize the BSEC library.
     ///
-    ///  #Errors
+    /// # Errors
     /// Returns an error if initializing the library failed.
     // TODO: Make this part of new()?
     // FIXME: Return either library or bme68x error based on error code
@@ -430,7 +432,7 @@ impl<I2C: I2c> Bsec<I2C> {
     ///
     /// # Returns
     /// The most recent output data from the structure
-    pub fn get_output_data(&self) -> BsecStructuredOutputs {
+    pub fn get_output_data(&self) -> StructuredOutputs {
         self.outputs
     }
 
@@ -535,7 +537,7 @@ impl<I2C: I2c> Bsec<I2C> {
             &mut inputs,
         );
 
-        if inputs.len() > 0 {
+        if !inputs.is_empty() {
             // FIXME: Clone/copy impl for the structure?
             let mut outputs: [bsec_output_t; BSEC_NUMBER_OUTPUTS as usize] = [
                 bsec_output_t {
@@ -718,7 +720,7 @@ impl<I2C: I2c> Bsec<I2C> {
     /// Will panic if the requested data type is not known.
     fn update_output_structure(&mut self, outputs: &mut [bsec_output_t], num_outputs: usize) {
         for output in outputs.iter().take(num_outputs) {
-            let data: &mut BsecVirtualSensorData = match u32::from(output.sensor_id) {
+            let data: &mut VirtualSensorData = match u32::from(output.sensor_id) {
                 bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ => &mut self.outputs.iaq,
                 bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ => &mut self.outputs.static_iaq,
                 bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT => &mut self.outputs.co2_eq,

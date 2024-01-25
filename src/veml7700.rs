@@ -197,7 +197,7 @@ impl From<VemlConfigReg> for u16 {
 }
 
 /// Structure of the output data from the sensor
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct VemlOutput {
     /// Raw ambient ligth sensor value.
     pub raw_als: u16,
@@ -211,6 +211,7 @@ pub struct VemlOutput {
 
 impl VemlOutput {
     /// Create a new empty instance of the structure.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             raw_als: 0,

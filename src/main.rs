@@ -6,7 +6,7 @@ use std::thread;
 
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec::bsec_bindings::BSEC_SAMPLE_RATE_LP;
-use environment_monitor_rust::bsec::{Bsec, BsecStructuredOutputs, BsecVirtualSensorData};
+use environment_monitor_rust::bsec::{Bsec, StructuredOutputs, VirtualSensorData};
 use esp_idf_hal::delay::FreeRtos;
 use esp_idf_hal::i2c::{I2cConfig, I2cDriver};
 use esp_idf_hal::peripherals::Peripherals;
@@ -18,7 +18,7 @@ enum SensorData {
     /// Data from the BME688
     Bsec {
         /// The data from the sensor
-        data: BsecStructuredOutputs,
+        data: StructuredOutputs,
     },
 
     /// Data from the VEML7700 sensor.
@@ -205,7 +205,7 @@ fn sensor_hub_task(data_mutex: Arc<Mutex<SensorHubData>>, receiver: &mpsc::Recei
 /// # Arguments
 /// * `name`: The name of the signal to log
 /// * `signal`: The signal to log
-fn log_signal(name: &str, value: BsecVirtualSensorData) {
+fn log_signal(name: &str, value: VirtualSensorData) {
     log::info!(
         "{name}: {}, Acc: {}, Valid: {}",
         value.signal,
@@ -218,7 +218,7 @@ fn log_signal(name: &str, value: BsecVirtualSensorData) {
 #[derive(Clone, Copy)]
 struct SensorHubData {
     /// Data from the BME688 sensor
-    pub bsec: BsecStructuredOutputs,
+    pub bsec: StructuredOutputs,
 
     /// Data from the VEML7700 sensor
     pub veml: VemlOutput,
@@ -228,7 +228,7 @@ impl SensorHubData {
     /// Create a new instance of the structure
     pub fn new() -> Self {
         Self {
-            bsec: BsecStructuredOutputs::new(),
+            bsec: StructuredOutputs::new(),
             veml: VemlOutput::new(),
         }
     }
