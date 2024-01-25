@@ -3,16 +3,207 @@
 // FIXME: Make private and have rust-based wrappers around everything?
 pub mod bsec_bindings;
 
+use std::num::TryFromIntError;
+
+#[allow(clippy::module_name_repetitions)]
 use self::bsec_bindings::*;
 
 use embedded_hal::i2c::I2c;
 use esp_idf_hal::delay::FreeRtos;
 
-// TODO: Remove this
-#[allow(clippy::unwrap_in_result)]
 use crate::bme68x::{
     BME68xAddr, BME68xData, BME68xDev, BME68xError, BME68xIntf, BME68xOpMode, BME68xOs,
 };
+
+/// Rust-Native wrapper for the BSEC Error codes.
+/// Has a few additional error codes beyond what the BSEC library provides.
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Copy)]
+pub enum BsecError {
+    /// Success
+    Ok,
+
+    /// Invalid input to `bsec_do_steps`
+    DoStepsInvalidInput,
+
+    /// Value passed to `bsec_do_steps` is out of range
+    DoStepsValueLimits,
+
+    /// Timestamp passed to `bsec_do_steps` is smaller than the previous
+    DoStepsTsIntRadifOutOfRange,
+
+    /// Same Input provided more than once
+    DoStepsDuplicateInput,
+
+    /// No memory allocated for returning outputs
+    DoStepsNoOutputsReturnable,
+
+    /// Not enough memory to hold return values
+    DoStepsExcessOutputs,
+
+    /// Gas index not provided
+    DoStepsGasIndexMiss,
+
+    /// Data rate of requested output is 0
+    WrongDataRate,
+
+    /// Sample rate not supported for given output
+    SampleRateLimits,
+
+    /// Duplicate ouput requested
+    DuplicateGate,
+
+    /// Invalid sampling rate
+    InvalidSampleRate,
+
+    /// Not Enough memopry to hold physical sensor data
+    GateCountExceedsArray,
+
+    /// Invalid output sample interval
+    SampleIntervalIntegerMult,
+
+    /// Invalid sampel output interval when gas sensing required
+    MultGasSampleInterval,
+
+    /// Measurement duration longer than requested sample interval
+    HighHeaterDuration,
+
+    /// Output sensor ID not in the valid range.
+    UnknownOutputGate,
+
+    /// ULP+ cannot be requrested in non-ulp mode
+    ModInNoULP,
+
+    /// No virtual sensor outputs were requested.
+    SubscribedOutputGates,
+
+    /// Gas Estimate is subscribed and takes precendence.
+    GasEstimatePrecedence,
+
+    /// Work buffer size not sufficent
+    SectionExceedsWorkBuffer,
+
+    /// Configuration failed
+    ConfigFail,
+
+    /// Serialized settings are for a different BSEC version
+    ConfigVersionMisMatch,
+
+    /// Serialized Enabled Features are for a different BSEC version
+    ConfigFeatureMismatch,
+
+    /// CRC of serialized settings does not match
+    ConfigCRCMisMatch,
+
+    /// Serialized Configuration is too small to be valid
+    ConfigEmpty,
+
+    /// Provided work buffer not large enough for the desired string
+    ConfigInsufficentWorkBuffer,
+
+    /// String size does not match specified string size
+    ConfigInvalidStringSize,
+
+    /// String buffer insufficent to hold entire configuration
+    ConfigInsufficentBuffer,
+
+    /// Internal warning that size of work buffer in setConfig is incorrect
+    SetInvalidChannelIdentifier,
+
+    /// Internal error code
+    SetInvalidLength,
+
+    /// Difference between actual and defined sampling rate too large
+    CallTimingViolation,
+
+    /// ULP+ not allowed becuase ULP measurement just/about to occur
+    ModExceedULPTimeLimit,
+
+    /// ULP+ Not allowed becuase not enough time since last ULP+
+    ModInsufficentWaitTime,
+
+    /// Error with the back-end BME68x Driver
+    DriverError {
+        /// Back End driver error
+        error: BME68xError,
+    },
+
+    /// Error converting between numeric typoes
+    NumericConversionErrror,
+
+    /// Unknown error code
+    UnknownError {
+        /// The unknown error code
+        code: bsec_library_return_t,
+    },
+}
+
+impl From<bsec_library_return_t> for BsecError {
+    #![allow(non_upper_case_globals)]
+    fn from(value: bsec_library_return_t) -> Self {
+        match value {
+            bsec_library_return_t_BSEC_OK => Self::Ok,
+            bsec_library_return_t_BSEC_E_DOSTEPS_INVALIDINPUT => Self::DoStepsInvalidInput,
+            bsec_library_return_t_BSEC_E_DOSTEPS_VALUELIMITS => Self::DoStepsValueLimits,
+            bsec_library_return_t_BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE => {
+                Self::DoStepsTsIntRadifOutOfRange
+            }
+            bsec_library_return_t_BSEC_E_DOSTEPS_DUPLICATEINPUT => Self::DoStepsDuplicateInput,
+            bsec_library_return_t_BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE => {
+                Self::DoStepsNoOutputsReturnable
+            }
+            bsec_library_return_t_BSEC_W_DOSTEPS_EXCESSOUTPUTS => Self::DoStepsExcessOutputs,
+            bsec_library_return_t_BSEC_W_DOSTEPS_GASINDEXMISS => Self::DoStepsGasIndexMiss,
+            bsec_library_return_t_BSEC_E_SU_WRONGDATARATE => Self::WrongDataRate,
+            bsec_library_return_t_BSEC_E_SU_SAMPLERATELIMITS => Self::SampleRateLimits,
+            bsec_library_return_t_BSEC_E_SU_DUPLICATEGATE => Self::DuplicateGate,
+            bsec_library_return_t_BSEC_E_SU_INVALIDSAMPLERATE => Self::InvalidSampleRate,
+            bsec_library_return_t_BSEC_E_SU_GATECOUNTEXCEEDSARRAY => Self::GateCountExceedsArray,
+            bsec_library_return_t_BSEC_E_SU_SAMPLINTVLINTEGERMULT => {
+                Self::SampleIntervalIntegerMult
+            }
+            bsec_library_return_t_BSEC_E_SU_MULTGASSAMPLINTVL => Self::MultGasSampleInterval,
+            bsec_library_return_t_BSEC_E_SU_HIGHHEATERONDURATION => Self::HighHeaterDuration,
+            bsec_library_return_t_BSEC_W_SU_UNKNOWNOUTPUTGATE => Self::UnknownOutputGate,
+            bsec_library_return_t_BSEC_W_SU_MODINNOULP => Self::ModInNoULP,
+            bsec_library_return_t_BSEC_I_SU_SUBSCRIBEDOUTPUTGATES => Self::SubscribedOutputGates,
+            bsec_library_return_t_BSEC_I_SU_GASESTIMATEPRECEDENCE => Self::GasEstimatePrecedence,
+            bsec_library_return_t_BSEC_E_PARSE_SECTIONEXCEEDSWORKBUFFER => {
+                Self::SectionExceedsWorkBuffer
+            }
+            bsec_library_return_t_BSEC_E_CONFIG_FAIL => Self::ConfigFail,
+            bsec_library_return_t_BSEC_E_CONFIG_VERSIONMISMATCH => Self::ConfigVersionMisMatch,
+            bsec_library_return_t_BSEC_E_CONFIG_FEATUREMISMATCH => Self::ConfigFeatureMismatch,
+            bsec_library_return_t_BSEC_E_CONFIG_CRCMISMATCH => Self::ConfigCRCMisMatch,
+            bsec_library_return_t_BSEC_E_CONFIG_EMPTY => Self::ConfigEmpty,
+            bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER => {
+                Self::ConfigInsufficentWorkBuffer
+            }
+            bsec_library_return_t_BSEC_E_CONFIG_INVALIDSTRINGSIZE => Self::ConfigInvalidStringSize,
+            bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTBUFFER => Self::ConfigInsufficentBuffer,
+            bsec_library_return_t_BSEC_E_SET_INVALIDCHANNELIDENTIFIER => {
+                Self::SetInvalidChannelIdentifier
+            }
+            bsec_library_return_t_BSEC_E_SET_INVALIDLENGTH => Self::SetInvalidLength,
+            bsec_library_return_t_BSEC_W_SC_CALL_TIMING_VIOLATION => Self::CallTimingViolation,
+            bsec_library_return_t_BSEC_W_SC_MODEXCEEDULPTIMELIMIT => Self::ModExceedULPTimeLimit,
+            bsec_library_return_t_BSEC_W_SC_MODINSUFFICIENTWAITTIME => Self::ModInsufficentWaitTime,
+            _ => Self::UnknownError { code: value },
+        }
+    }
+}
+
+impl From<BME68xError> for BsecError {
+    fn from(value: BME68xError) -> Self {
+        Self::DriverError { error: value }
+    }
+}
+
+impl From<TryFromIntError> for BsecError {
+    fn from(_value: TryFromIntError) -> Self {
+        Self::NumericConversionErrror
+    }
+}
 
 /// Special version of `bsec_output_t`
 ///
@@ -189,10 +380,10 @@ impl<I2C: I2c> Bsec<I2C> {
     /// # Errors
     /// Returns an error if initializing the library failed.
     // TODO: Make this part of new()?
-    // FIXME: Return either library or bme68x error based on error code
-    pub fn init(&mut self) -> Result<(), bsec_library_return_t> {
-        self.bme.init().unwrap(); // FIXME: Return this, not unwrap
-        to_err(unsafe { bsec_init() })
+    pub fn init(&mut self) -> Result<(), BsecError> {
+        self.bme.init()?;
+        to_err(unsafe { bsec_init() })?;
+        Ok(())
     }
 
     /// Get the version of the BSEC library
@@ -203,7 +394,7 @@ impl<I2C: I2c> Bsec<I2C> {
     /// # Errors
     /// Returns an error if reading the version fails.
     // TODO: Rust native version structure
-    pub fn get_version(&self) -> Result<bsec_version_t, bsec_library_return_t> {
+    pub fn get_version(&self) -> Result<bsec_version_t, BsecError> {
         let mut version = bsec_version_t {
             major: 0,
             minor: 0,
@@ -224,7 +415,7 @@ impl<I2C: I2c> Bsec<I2C> {
     pub fn update_subscription(
         &self,
         requested_virtual_sensors: &[bsec_sensor_configuration_t],
-    ) -> Result<(), bsec_library_return_t> {
+    ) -> Result<(), BsecError> {
         // FIXME: See if we can add derive for copy to the struct to make this smaller.
         let mut required_sensor_settings: [bsec_sensor_configuration_t;
             BSEC_MAX_PHYSICAL_SENSOR as usize] = [
@@ -261,15 +452,17 @@ impl<I2C: I2c> Bsec<I2C> {
                 sensor_id: 0,
             },
         ];
-        let mut n_required_sensor_settings: u8 = BSEC_MAX_PHYSICAL_SENSOR.try_into().unwrap();
+        let mut n_required_sensor_settings: u8 = BSEC_MAX_PHYSICAL_SENSOR.try_into()?;
         to_err(unsafe {
             bsec_update_subscription(
                 requested_virtual_sensors.as_ptr(),
-                requested_virtual_sensors.len().try_into().unwrap(),
+                requested_virtual_sensors.len().try_into()?,
                 required_sensor_settings.as_mut_ptr(),
                 &mut n_required_sensor_settings,
             )
-        })
+        })?;
+
+        Ok(())
     }
 
     /// Subscribe to all non gas-scan sensors
@@ -281,83 +474,61 @@ impl<I2C: I2c> Bsec<I2C> {
     /// Returns an error if subscribing fails
     ///
     // TODO: Enum for sample rate
-    pub fn subscribe_all_non_scan(&self, sample_rate: f32) -> Result<(), bsec_library_return_t> {
+    pub fn subscribe_all_non_scan(&self, sample_rate: f32) -> Result<(), BsecError> {
         let requested_sensors = [
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ.try_into().unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
                 sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE
-                    .try_into()
-                    .unwrap(),
+                    .try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
                 sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY
-                    .try_into()
-                    .unwrap(),
+                    .try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE
-                    .try_into()
-                    .unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE.try_into()?,
             },
         ];
         self.update_subscription(&requested_sensors)
@@ -371,7 +542,7 @@ impl<I2C: I2c> Bsec<I2C> {
     /// # Errors
     /// Errors if reading and processing the data failed.
     // FIXME: Return either library or bme68x error based on error code
-    pub fn periodic_process(&mut self, timestamp_ns: i64) -> Result<(), bsec_library_return_t> {
+    pub fn periodic_process(&mut self, timestamp_ns: i64) -> Result<(), BsecError> {
         let mut sensor_settings = bsec_bme_settings_t {
             heater_duration: 0,
             heater_duration_profile: [0; 10],
@@ -393,13 +564,12 @@ impl<I2C: I2c> Bsec<I2C> {
         to_err(unsafe { bsec_sensor_control(timestamp_ns, &mut sensor_settings) })?;
         self.sensor_settings = sensor_settings;
 
-        let result = match BME68xOpMode::from(self.sensor_settings.op_mode) {
+        match BME68xOpMode::from(self.sensor_settings.op_mode) {
             BME68xOpMode::ForcedMode => self.configure_sensor_forced(),
             BME68xOpMode::ParallelMode => self.configure_sensor_parallel(),
             BME68xOpMode::SleepMode => self.bme.set_op_mode(BME68xOpMode::SleepMode),
             BME68xOpMode::SequentialMode => panic!("Sequential Op Not Supported"),
-        };
-        result.unwrap();
+        }?;
 
         if (self.sensor_settings.trigger_measurement != 0)
             && !matches!(
@@ -412,11 +582,10 @@ impl<I2C: I2c> Bsec<I2C> {
                 .bme
                 .get_data(BME68xOpMode::from(self.sensor_settings.op_mode));
             if result.is_err() && matches!(result.unwrap_err(), BME68xError::NoNewData) {
-                // result.unwrap();
             } else if result.is_err() {
-                result.unwrap();
+                result?;
             } else {
-                let (data, n_data) = result.unwrap();
+                let (data, n_data) = result?;
                 if n_data > 0 {
                     for entry in data.iter().take(n_data as usize) {
                         self.process_data(entry)?;
@@ -495,7 +664,7 @@ impl<I2C: I2c> Bsec<I2C> {
     ///
     /// # Errors
     /// Returns an error if processing the data failed.
-    fn process_data(&mut self, data: &BME68xData) -> Result<(), bsec_library_return_t> {
+    fn process_data(&mut self, data: &BME68xData) -> Result<(), BsecError> {
         let mut inputs: Vec<bsec_input_t> = Vec::new();
         // Conditionalyl add sensor data
         self.add_sig_cond(
@@ -674,12 +843,12 @@ impl<I2C: I2c> Bsec<I2C> {
                     time_stamp: 0,
                 },
             ];
-            let mut num_outputs: u8 = outputs.len().try_into().unwrap();
+            let mut num_outputs: u8 = outputs.len().try_into()?;
 
             to_err(unsafe {
                 bsec_do_steps(
                     inputs.as_ptr(),
-                    inputs.len().try_into().unwrap(),
+                    inputs.len().try_into()?,
                     outputs.as_mut_ptr(),
                     &mut num_outputs,
                 )
