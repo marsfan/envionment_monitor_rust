@@ -79,20 +79,20 @@ fn main() {
     thread::Builder::new()
         .name("Sensor Hub Thread".to_string())
         .stack_size(4096)
-        .spawn(move || sensor_hub_task(hub_data, &rx))
+        .spawn(move || sensor_hub_task(&hub_data, &rx))
         .unwrap();
 
     // Start the sensor threads.
     thread::Builder::new()
         .name("BSEC Thread".to_string())
         .stack_size(4096)
-        .spawn(move || bsec_task(bsec_i2c, &bsec_transmitter))
+        .spawn(move || bsec_task(&bsec_i2c, &bsec_transmitter))
         .unwrap();
 
     thread::Builder::new()
         .name("VEML Thread".to_string())
         .stack_size(4096)
-        .spawn(move || veml_task(veml_i2c, &veml_transmitter))
+        .spawn(move || veml_task(&veml_i2c, &veml_transmitter))
         .unwrap();
 
     // Main thread now handles periodically printing data read from the sensors
@@ -127,8 +127,8 @@ fn main() {
 /// * `i2c_handle`: Handle to a Mutex-protected I2C driver used to
 ///     communicate with the sensor.
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread
-fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
-    let i2c_driver = MutexDevice::new(&i2c_handle);
+fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
+    let i2c_driver = MutexDevice::new(i2c_handle);
     let mut bsec = Bsec::new(i2c_driver, 25.0);
 
     log::info!("Starting BSEC");
@@ -166,8 +166,8 @@ fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSend
 /// * `i2c_handle`: Handle to a Mutex-protected I2C driver used to
 ///     communicate with the sensor.
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread.
-fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
-    let i2c_driver = MutexDevice::new(&i2c_handle);
+fn veml_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
+    let i2c_driver = MutexDevice::new(i2c_handle);
     let mut veml = Veml7700::new(i2c_driver, 1000);
     veml.set_power_state(false).unwrap();
 
@@ -185,7 +185,7 @@ fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSend
 /// # Arguments
 /// * `receiver`: The receiver that will get data from the sensor tasks.
 /// * `data_mutex`: Mutex protected sensor data that the sensor hub will collect.
-fn sensor_hub_task(data_mutex: Arc<Mutex<SensorHubData>>, receiver: &mpsc::Receiver<SensorData>) {
+fn sensor_hub_task(data_mutex: &Arc<Mutex<SensorHubData>>, receiver: &mpsc::Receiver<SensorData>) {
     loop {
         // Read here first so that we don't try to acquire the mutex until we have
         // data to act on

@@ -1,12 +1,65 @@
 //! Main BSEC logic
 // pub mod bindings;
 // FIXME: Make private and have rust-based wrappers around everything?
+#[allow(clippy::module_name_repetitions)]
 pub mod bsec_bindings;
 
 use std::num::TryFromIntError;
 
-#[allow(clippy::module_name_repetitions)]
-use self::bsec_bindings::*;
+// Allow here because this woiud
+use self::bsec_bindings::{
+    bsec_bme_settings_t, bsec_do_steps, bsec_get_version, bsec_init, bsec_input_t,
+    bsec_library_return_t, bsec_library_return_t_BSEC_E_CONFIG_CRCMISMATCH,
+    bsec_library_return_t_BSEC_E_CONFIG_EMPTY, bsec_library_return_t_BSEC_E_CONFIG_FAIL,
+    bsec_library_return_t_BSEC_E_CONFIG_FEATUREMISMATCH,
+    bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTBUFFER,
+    bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER,
+    bsec_library_return_t_BSEC_E_CONFIG_INVALIDSTRINGSIZE,
+    bsec_library_return_t_BSEC_E_CONFIG_VERSIONMISMATCH,
+    bsec_library_return_t_BSEC_E_DOSTEPS_DUPLICATEINPUT,
+    bsec_library_return_t_BSEC_E_DOSTEPS_INVALIDINPUT,
+    bsec_library_return_t_BSEC_E_DOSTEPS_VALUELIMITS,
+    bsec_library_return_t_BSEC_E_PARSE_SECTIONEXCEEDSWORKBUFFER,
+    bsec_library_return_t_BSEC_E_SET_INVALIDCHANNELIDENTIFIER,
+    bsec_library_return_t_BSEC_E_SET_INVALIDLENGTH, bsec_library_return_t_BSEC_E_SU_DUPLICATEGATE,
+    bsec_library_return_t_BSEC_E_SU_GATECOUNTEXCEEDSARRAY,
+    bsec_library_return_t_BSEC_E_SU_HIGHHEATERONDURATION,
+    bsec_library_return_t_BSEC_E_SU_INVALIDSAMPLERATE,
+    bsec_library_return_t_BSEC_E_SU_MULTGASSAMPLINTVL,
+    bsec_library_return_t_BSEC_E_SU_SAMPLERATELIMITS,
+    bsec_library_return_t_BSEC_E_SU_SAMPLINTVLINTEGERMULT,
+    bsec_library_return_t_BSEC_E_SU_WRONGDATARATE,
+    bsec_library_return_t_BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE,
+    bsec_library_return_t_BSEC_I_SU_GASESTIMATEPRECEDENCE,
+    bsec_library_return_t_BSEC_I_SU_SUBSCRIBEDOUTPUTGATES, bsec_library_return_t_BSEC_OK,
+    bsec_library_return_t_BSEC_W_DOSTEPS_EXCESSOUTPUTS,
+    bsec_library_return_t_BSEC_W_DOSTEPS_GASINDEXMISS,
+    bsec_library_return_t_BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE,
+    bsec_library_return_t_BSEC_W_SC_CALL_TIMING_VIOLATION,
+    bsec_library_return_t_BSEC_W_SC_MODEXCEEDULPTIMELIMIT,
+    bsec_library_return_t_BSEC_W_SC_MODINSUFFICIENTWAITTIME,
+    bsec_library_return_t_BSEC_W_SU_MODINNOULP, bsec_library_return_t_BSEC_W_SU_UNKNOWNOUTPUTGATE,
+    bsec_output_t, bsec_physical_sensor_t_BSEC_INPUT_GASRESISTOR,
+    bsec_physical_sensor_t_BSEC_INPUT_HEATSOURCE, bsec_physical_sensor_t_BSEC_INPUT_HUMIDITY,
+    bsec_physical_sensor_t_BSEC_INPUT_PRESSURE, bsec_physical_sensor_t_BSEC_INPUT_PROFILE_PART,
+    bsec_physical_sensor_t_BSEC_INPUT_TEMPERATURE, bsec_sensor_configuration_t,
+    bsec_sensor_control, bsec_update_subscription, bsec_version_t,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_1,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_2,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_3,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_4,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE, bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS, bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS_INDEX,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY, bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS,
+    bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ, BSEC_MAX_PHYSICAL_SENSOR, BSEC_NUMBER_OUTPUTS,
+};
 
 use embedded_hal::i2c::I2c;
 use esp_idf_hal::delay::FreeRtos;
@@ -541,6 +594,9 @@ impl<I2C: I2c> Bsec<I2C> {
     ///
     /// # Errors
     /// Errors if reading and processing the data failed.
+    ///
+    /// # Panics
+    /// Panics if an attempt to use the sensor's sequential mode is made.
     // FIXME: Return either library or bme68x error based on error code
     pub fn periodic_process(&mut self, timestamp_ns: i64) -> Result<(), BsecError> {
         let mut sensor_settings = bsec_bme_settings_t {
