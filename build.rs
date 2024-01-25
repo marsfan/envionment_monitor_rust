@@ -15,6 +15,7 @@ fn main() {
     let bindings = bindgen::Builder::default()
         .header("src/bsec/inc/bsec_datatypes.h")
         .header("src/bsec/inc/bsec_interface.h")
+        .prepend_enum_name(false)
         .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()))
         .generate()
         .expect("Unable to generate bindings");

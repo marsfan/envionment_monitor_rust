@@ -9,56 +9,29 @@ use std::num::TryFromIntError;
 // Allow here because this woiud
 use self::bsec_bindings::{
     bsec_bme_settings_t, bsec_do_steps, bsec_get_version, bsec_init, bsec_input_t,
-    bsec_library_return_t, bsec_library_return_t_BSEC_E_CONFIG_CRCMISMATCH,
-    bsec_library_return_t_BSEC_E_CONFIG_EMPTY, bsec_library_return_t_BSEC_E_CONFIG_FAIL,
-    bsec_library_return_t_BSEC_E_CONFIG_FEATUREMISMATCH,
-    bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTBUFFER,
-    bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER,
-    bsec_library_return_t_BSEC_E_CONFIG_INVALIDSTRINGSIZE,
-    bsec_library_return_t_BSEC_E_CONFIG_VERSIONMISMATCH,
-    bsec_library_return_t_BSEC_E_DOSTEPS_DUPLICATEINPUT,
-    bsec_library_return_t_BSEC_E_DOSTEPS_INVALIDINPUT,
-    bsec_library_return_t_BSEC_E_DOSTEPS_VALUELIMITS,
-    bsec_library_return_t_BSEC_E_PARSE_SECTIONEXCEEDSWORKBUFFER,
-    bsec_library_return_t_BSEC_E_SET_INVALIDCHANNELIDENTIFIER,
-    bsec_library_return_t_BSEC_E_SET_INVALIDLENGTH, bsec_library_return_t_BSEC_E_SU_DUPLICATEGATE,
-    bsec_library_return_t_BSEC_E_SU_GATECOUNTEXCEEDSARRAY,
-    bsec_library_return_t_BSEC_E_SU_HIGHHEATERONDURATION,
-    bsec_library_return_t_BSEC_E_SU_INVALIDSAMPLERATE,
-    bsec_library_return_t_BSEC_E_SU_MULTGASSAMPLINTVL,
-    bsec_library_return_t_BSEC_E_SU_SAMPLERATELIMITS,
-    bsec_library_return_t_BSEC_E_SU_SAMPLINTVLINTEGERMULT,
-    bsec_library_return_t_BSEC_E_SU_WRONGDATARATE,
-    bsec_library_return_t_BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE,
-    bsec_library_return_t_BSEC_I_SU_GASESTIMATEPRECEDENCE,
-    bsec_library_return_t_BSEC_I_SU_SUBSCRIBEDOUTPUTGATES, bsec_library_return_t_BSEC_OK,
-    bsec_library_return_t_BSEC_W_DOSTEPS_EXCESSOUTPUTS,
-    bsec_library_return_t_BSEC_W_DOSTEPS_GASINDEXMISS,
-    bsec_library_return_t_BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE,
-    bsec_library_return_t_BSEC_W_SC_CALL_TIMING_VIOLATION,
-    bsec_library_return_t_BSEC_W_SC_MODEXCEEDULPTIMELIMIT,
-    bsec_library_return_t_BSEC_W_SC_MODINSUFFICIENTWAITTIME,
-    bsec_library_return_t_BSEC_W_SU_MODINNOULP, bsec_library_return_t_BSEC_W_SU_UNKNOWNOUTPUTGATE,
-    bsec_output_t, bsec_physical_sensor_t_BSEC_INPUT_GASRESISTOR,
-    bsec_physical_sensor_t_BSEC_INPUT_HEATSOURCE, bsec_physical_sensor_t_BSEC_INPUT_HUMIDITY,
-    bsec_physical_sensor_t_BSEC_INPUT_PRESSURE, bsec_physical_sensor_t_BSEC_INPUT_PROFILE_PART,
-    bsec_physical_sensor_t_BSEC_INPUT_TEMPERATURE, bsec_sensor_configuration_t,
-    bsec_sensor_control, bsec_update_subscription, bsec_version_t,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_1,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_2,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_3,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_4,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE, bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS, bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS_INDEX,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY, bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS,
-    bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ, BSEC_MAX_PHYSICAL_SENSOR, BSEC_NUMBER_OUTPUTS,
+    bsec_library_return_t, bsec_output_t, bsec_sensor_configuration_t, bsec_sensor_control,
+    bsec_update_subscription, bsec_version_t, BSEC_E_CONFIG_CRCMISMATCH, BSEC_E_CONFIG_EMPTY,
+    BSEC_E_CONFIG_FAIL, BSEC_E_CONFIG_FEATUREMISMATCH, BSEC_E_CONFIG_INSUFFICIENTBUFFER,
+    BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER, BSEC_E_CONFIG_INVALIDSTRINGSIZE,
+    BSEC_E_CONFIG_VERSIONMISMATCH, BSEC_E_DOSTEPS_DUPLICATEINPUT, BSEC_E_DOSTEPS_INVALIDINPUT,
+    BSEC_E_DOSTEPS_VALUELIMITS, BSEC_E_PARSE_SECTIONEXCEEDSWORKBUFFER,
+    BSEC_E_SET_INVALIDCHANNELIDENTIFIER, BSEC_E_SET_INVALIDLENGTH, BSEC_E_SU_DUPLICATEGATE,
+    BSEC_E_SU_GATECOUNTEXCEEDSARRAY, BSEC_E_SU_HIGHHEATERONDURATION, BSEC_E_SU_INVALIDSAMPLERATE,
+    BSEC_E_SU_MULTGASSAMPLINTVL, BSEC_E_SU_SAMPLERATELIMITS, BSEC_E_SU_SAMPLINTVLINTEGERMULT,
+    BSEC_E_SU_WRONGDATARATE, BSEC_INPUT_GASRESISTOR, BSEC_INPUT_HEATSOURCE, BSEC_INPUT_HUMIDITY,
+    BSEC_INPUT_PRESSURE, BSEC_INPUT_PROFILE_PART, BSEC_INPUT_TEMPERATURE,
+    BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE, BSEC_I_SU_GASESTIMATEPRECEDENCE,
+    BSEC_I_SU_SUBSCRIBEDOUTPUTGATES, BSEC_MAX_PHYSICAL_SENSOR, BSEC_NUMBER_OUTPUTS, BSEC_OK,
+    BSEC_OUTPUT_BREATH_VOC_EQUIVALENT, BSEC_OUTPUT_CO2_EQUIVALENT, BSEC_OUTPUT_GAS_ESTIMATE_1,
+    BSEC_OUTPUT_GAS_ESTIMATE_2, BSEC_OUTPUT_GAS_ESTIMATE_3, BSEC_OUTPUT_GAS_ESTIMATE_4,
+    BSEC_OUTPUT_GAS_PERCENTAGE, BSEC_OUTPUT_IAQ, BSEC_OUTPUT_RAW_GAS, BSEC_OUTPUT_RAW_GAS_INDEX,
+    BSEC_OUTPUT_RAW_HUMIDITY, BSEC_OUTPUT_RAW_PRESSURE, BSEC_OUTPUT_RAW_TEMPERATURE,
+    BSEC_OUTPUT_RUN_IN_STATUS, BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
+    BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE, BSEC_OUTPUT_STABILIZATION_STATUS,
+    BSEC_OUTPUT_STATIC_IAQ, BSEC_W_DOSTEPS_EXCESSOUTPUTS, BSEC_W_DOSTEPS_GASINDEXMISS,
+    BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE, BSEC_W_SC_CALL_TIMING_VIOLATION,
+    BSEC_W_SC_MODEXCEEDULPTIMELIMIT, BSEC_W_SC_MODINSUFFICIENTWAITTIME, BSEC_W_SU_MODINNOULP,
+    BSEC_W_SU_UNKNOWNOUTPUTGATE,
 };
 
 use embedded_hal::i2c::I2c;
@@ -195,52 +168,40 @@ impl From<bsec_library_return_t> for BsecError {
     #![allow(non_upper_case_globals)]
     fn from(value: bsec_library_return_t) -> Self {
         match value {
-            bsec_library_return_t_BSEC_OK => Self::Ok,
-            bsec_library_return_t_BSEC_E_DOSTEPS_INVALIDINPUT => Self::DoStepsInvalidInput,
-            bsec_library_return_t_BSEC_E_DOSTEPS_VALUELIMITS => Self::DoStepsValueLimits,
-            bsec_library_return_t_BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE => {
-                Self::DoStepsTsIntRadifOutOfRange
-            }
-            bsec_library_return_t_BSEC_E_DOSTEPS_DUPLICATEINPUT => Self::DoStepsDuplicateInput,
-            bsec_library_return_t_BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE => {
-                Self::DoStepsNoOutputsReturnable
-            }
-            bsec_library_return_t_BSEC_W_DOSTEPS_EXCESSOUTPUTS => Self::DoStepsExcessOutputs,
-            bsec_library_return_t_BSEC_W_DOSTEPS_GASINDEXMISS => Self::DoStepsGasIndexMiss,
-            bsec_library_return_t_BSEC_E_SU_WRONGDATARATE => Self::WrongDataRate,
-            bsec_library_return_t_BSEC_E_SU_SAMPLERATELIMITS => Self::SampleRateLimits,
-            bsec_library_return_t_BSEC_E_SU_DUPLICATEGATE => Self::DuplicateGate,
-            bsec_library_return_t_BSEC_E_SU_INVALIDSAMPLERATE => Self::InvalidSampleRate,
-            bsec_library_return_t_BSEC_E_SU_GATECOUNTEXCEEDSARRAY => Self::GateCountExceedsArray,
-            bsec_library_return_t_BSEC_E_SU_SAMPLINTVLINTEGERMULT => {
-                Self::SampleIntervalIntegerMult
-            }
-            bsec_library_return_t_BSEC_E_SU_MULTGASSAMPLINTVL => Self::MultGasSampleInterval,
-            bsec_library_return_t_BSEC_E_SU_HIGHHEATERONDURATION => Self::HighHeaterDuration,
-            bsec_library_return_t_BSEC_W_SU_UNKNOWNOUTPUTGATE => Self::UnknownOutputGate,
-            bsec_library_return_t_BSEC_W_SU_MODINNOULP => Self::ModInNoULP,
-            bsec_library_return_t_BSEC_I_SU_SUBSCRIBEDOUTPUTGATES => Self::SubscribedOutputGates,
-            bsec_library_return_t_BSEC_I_SU_GASESTIMATEPRECEDENCE => Self::GasEstimatePrecedence,
-            bsec_library_return_t_BSEC_E_PARSE_SECTIONEXCEEDSWORKBUFFER => {
-                Self::SectionExceedsWorkBuffer
-            }
-            bsec_library_return_t_BSEC_E_CONFIG_FAIL => Self::ConfigFail,
-            bsec_library_return_t_BSEC_E_CONFIG_VERSIONMISMATCH => Self::ConfigVersionMisMatch,
-            bsec_library_return_t_BSEC_E_CONFIG_FEATUREMISMATCH => Self::ConfigFeatureMismatch,
-            bsec_library_return_t_BSEC_E_CONFIG_CRCMISMATCH => Self::ConfigCRCMisMatch,
-            bsec_library_return_t_BSEC_E_CONFIG_EMPTY => Self::ConfigEmpty,
-            bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER => {
-                Self::ConfigInsufficentWorkBuffer
-            }
-            bsec_library_return_t_BSEC_E_CONFIG_INVALIDSTRINGSIZE => Self::ConfigInvalidStringSize,
-            bsec_library_return_t_BSEC_E_CONFIG_INSUFFICIENTBUFFER => Self::ConfigInsufficentBuffer,
-            bsec_library_return_t_BSEC_E_SET_INVALIDCHANNELIDENTIFIER => {
-                Self::SetInvalidChannelIdentifier
-            }
-            bsec_library_return_t_BSEC_E_SET_INVALIDLENGTH => Self::SetInvalidLength,
-            bsec_library_return_t_BSEC_W_SC_CALL_TIMING_VIOLATION => Self::CallTimingViolation,
-            bsec_library_return_t_BSEC_W_SC_MODEXCEEDULPTIMELIMIT => Self::ModExceedULPTimeLimit,
-            bsec_library_return_t_BSEC_W_SC_MODINSUFFICIENTWAITTIME => Self::ModInsufficentWaitTime,
+            BSEC_OK => Self::Ok,
+            BSEC_E_DOSTEPS_INVALIDINPUT => Self::DoStepsInvalidInput,
+            BSEC_E_DOSTEPS_VALUELIMITS => Self::DoStepsValueLimits,
+            BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE => Self::DoStepsTsIntRadifOutOfRange,
+            BSEC_E_DOSTEPS_DUPLICATEINPUT => Self::DoStepsDuplicateInput,
+            BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE => Self::DoStepsNoOutputsReturnable,
+            BSEC_W_DOSTEPS_EXCESSOUTPUTS => Self::DoStepsExcessOutputs,
+            BSEC_W_DOSTEPS_GASINDEXMISS => Self::DoStepsGasIndexMiss,
+            BSEC_E_SU_WRONGDATARATE => Self::WrongDataRate,
+            BSEC_E_SU_SAMPLERATELIMITS => Self::SampleRateLimits,
+            BSEC_E_SU_DUPLICATEGATE => Self::DuplicateGate,
+            BSEC_E_SU_INVALIDSAMPLERATE => Self::InvalidSampleRate,
+            BSEC_E_SU_GATECOUNTEXCEEDSARRAY => Self::GateCountExceedsArray,
+            BSEC_E_SU_SAMPLINTVLINTEGERMULT => Self::SampleIntervalIntegerMult,
+            BSEC_E_SU_MULTGASSAMPLINTVL => Self::MultGasSampleInterval,
+            BSEC_E_SU_HIGHHEATERONDURATION => Self::HighHeaterDuration,
+            BSEC_W_SU_UNKNOWNOUTPUTGATE => Self::UnknownOutputGate,
+            BSEC_W_SU_MODINNOULP => Self::ModInNoULP,
+            BSEC_I_SU_SUBSCRIBEDOUTPUTGATES => Self::SubscribedOutputGates,
+            BSEC_I_SU_GASESTIMATEPRECEDENCE => Self::GasEstimatePrecedence,
+            BSEC_E_PARSE_SECTIONEXCEEDSWORKBUFFER => Self::SectionExceedsWorkBuffer,
+            BSEC_E_CONFIG_FAIL => Self::ConfigFail,
+            BSEC_E_CONFIG_VERSIONMISMATCH => Self::ConfigVersionMisMatch,
+            BSEC_E_CONFIG_FEATUREMISMATCH => Self::ConfigFeatureMismatch,
+            BSEC_E_CONFIG_CRCMISMATCH => Self::ConfigCRCMisMatch,
+            BSEC_E_CONFIG_EMPTY => Self::ConfigEmpty,
+            BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER => Self::ConfigInsufficentWorkBuffer,
+            BSEC_E_CONFIG_INVALIDSTRINGSIZE => Self::ConfigInvalidStringSize,
+            BSEC_E_CONFIG_INSUFFICIENTBUFFER => Self::ConfigInsufficentBuffer,
+            BSEC_E_SET_INVALIDCHANNELIDENTIFIER => Self::SetInvalidChannelIdentifier,
+            BSEC_E_SET_INVALIDLENGTH => Self::SetInvalidLength,
+            BSEC_W_SC_CALL_TIMING_VIOLATION => Self::CallTimingViolation,
+            BSEC_W_SC_MODEXCEEDULPTIMELIMIT => Self::ModExceedULPTimeLimit,
+            BSEC_W_SC_MODINSUFFICIENTWAITTIME => Self::ModInsufficentWaitTime,
             _ => Self::UnknownError { code: value },
         }
     }
@@ -531,57 +492,55 @@ impl<I2C: I2c> Bsec<I2C> {
         let requested_sensors = [
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE.try_into()?,
+                sensor_id: BSEC_OUTPUT_RAW_TEMPERATURE.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE.try_into()?,
+                sensor_id: BSEC_OUTPUT_RAW_PRESSURE.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY.try_into()?,
+                sensor_id: BSEC_OUTPUT_RAW_HUMIDITY.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS.try_into()?,
+                sensor_id: BSEC_OUTPUT_RAW_GAS.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ.try_into()?,
+                sensor_id: BSEC_OUTPUT_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ.try_into()?,
+                sensor_id: BSEC_OUTPUT_STATIC_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT.try_into()?,
+                sensor_id: BSEC_OUTPUT_CO2_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT.try_into()?,
+                sensor_id: BSEC_OUTPUT_BREATH_VOC_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE
-                    .try_into()?,
+                sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY
-                    .try_into()?,
+                sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS.try_into()?,
+                sensor_id: BSEC_OUTPUT_STABILIZATION_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS.try_into()?,
+                sensor_id: BSEC_OUTPUT_RUN_IN_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE.try_into()?,
+                sensor_id: BSEC_OUTPUT_GAS_PERCENTAGE.try_into()?,
             },
         ];
         self.update_subscription(&requested_sensors)
@@ -723,37 +682,17 @@ impl<I2C: I2c> Bsec<I2C> {
     fn process_data(&mut self, data: &BME68xData) -> Result<(), BsecError> {
         let mut inputs: Vec<bsec_input_t> = Vec::new();
         // Conditionalyl add sensor data
-        self.add_sig_cond(
-            bsec_physical_sensor_t_BSEC_INPUT_PRESSURE,
-            data.pressure,
-            &mut inputs,
-        );
-        self.add_sig_cond(
-            bsec_physical_sensor_t_BSEC_INPUT_HUMIDITY,
-            data.humidity,
-            &mut inputs,
-        );
-        self.add_sig_cond(
-            bsec_physical_sensor_t_BSEC_INPUT_TEMPERATURE,
-            data.temperature,
-            &mut inputs,
-        );
-        self.add_sig_cond(
-            bsec_physical_sensor_t_BSEC_INPUT_GASRESISTOR,
-            data.gas_resistance,
-            &mut inputs,
-        );
-        self.add_sig_cond(
-            bsec_physical_sensor_t_BSEC_INPUT_HEATSOURCE,
-            self.temp_offset,
-            &mut inputs,
-        );
+        self.add_sig_cond(BSEC_INPUT_PRESSURE, data.pressure, &mut inputs);
+        self.add_sig_cond(BSEC_INPUT_HUMIDITY, data.humidity, &mut inputs);
+        self.add_sig_cond(BSEC_INPUT_TEMPERATURE, data.temperature, &mut inputs);
+        self.add_sig_cond(BSEC_INPUT_GASRESISTOR, data.gas_resistance, &mut inputs);
+        self.add_sig_cond(BSEC_INPUT_HEATSOURCE, self.temp_offset, &mut inputs);
 
         // TODO: BSEC_INPUT_DISABLE_BASELINE_TRACKER
 
         // TODO: Not 100% sure what this is. Need to check datasheet
         self.add_sig_cond(
-            bsec_physical_sensor_t_BSEC_INPUT_PROFILE_PART,
+            BSEC_INPUT_PROFILE_PART,
             if self.sensor_settings.op_mode == BME68xOpMode::ForcedMode.into() {
                 0.0
             } else {
@@ -946,42 +885,28 @@ impl<I2C: I2c> Bsec<I2C> {
     fn update_output_structure(&mut self, outputs: &mut [bsec_output_t], num_outputs: usize) {
         for output in outputs.iter().take(num_outputs) {
             let data: &mut VirtualSensorData = match u32::from(output.sensor_id) {
-                bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ => &mut self.outputs.iaq,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ => &mut self.outputs.static_iaq,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT => &mut self.outputs.co2_eq,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT => {
-                    &mut self.outputs.breath_voc_eq
-                }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE => &mut self.outputs.raw_temp,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE => &mut self.outputs.raw_pressure,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY => &mut self.outputs.raw_humidity,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS => &mut self.outputs.raw_gas,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS => {
-                    &mut self.outputs.stabilization_status
-                }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS => &mut self.outputs.run_in_status,
-                bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE => {
+                BSEC_OUTPUT_IAQ => &mut self.outputs.iaq,
+                BSEC_OUTPUT_STATIC_IAQ => &mut self.outputs.static_iaq,
+                BSEC_OUTPUT_CO2_EQUIVALENT => &mut self.outputs.co2_eq,
+                BSEC_OUTPUT_BREATH_VOC_EQUIVALENT => &mut self.outputs.breath_voc_eq,
+                BSEC_OUTPUT_RAW_TEMPERATURE => &mut self.outputs.raw_temp,
+                BSEC_OUTPUT_RAW_PRESSURE => &mut self.outputs.raw_pressure,
+                BSEC_OUTPUT_RAW_HUMIDITY => &mut self.outputs.raw_humidity,
+                BSEC_OUTPUT_RAW_GAS => &mut self.outputs.raw_gas,
+                BSEC_OUTPUT_STABILIZATION_STATUS => &mut self.outputs.stabilization_status,
+                BSEC_OUTPUT_RUN_IN_STATUS => &mut self.outputs.run_in_status,
+                BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE => {
                     &mut self.outputs.compensated_temp
                 }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY => {
+                BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY => {
                     &mut self.outputs.compensated_humidity
                 }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE => {
-                    &mut self.outputs.gas_percentage
-                }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_1 => {
-                    &mut self.outputs.gas_estimate_1
-                }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_2 => {
-                    &mut self.outputs.gas_estimate_2
-                }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_3 => {
-                    &mut self.outputs.gas_estimate_3
-                }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_4 => {
-                    &mut self.outputs.gas_estimate_4
-                }
-                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS_INDEX => &mut self.outputs.raw_gas_index,
+                BSEC_OUTPUT_GAS_PERCENTAGE => &mut self.outputs.gas_percentage,
+                BSEC_OUTPUT_GAS_ESTIMATE_1 => &mut self.outputs.gas_estimate_1,
+                BSEC_OUTPUT_GAS_ESTIMATE_2 => &mut self.outputs.gas_estimate_2,
+                BSEC_OUTPUT_GAS_ESTIMATE_3 => &mut self.outputs.gas_estimate_3,
+                BSEC_OUTPUT_GAS_ESTIMATE_4 => &mut self.outputs.gas_estimate_4,
+                BSEC_OUTPUT_RAW_GAS_INDEX => &mut self.outputs.raw_gas_index,
                 _ => panic!("Unknown sensor output type"),
             };
 
