@@ -839,7 +839,6 @@ impl<I2C: I2c> Bsec<I2C> {
                 },
             ];
             let mut num_outputs: u8 = outputs.len().try_into()?;
-
             to_err(unsafe {
                 bsec_do_steps(
                     inputs.as_ptr(),

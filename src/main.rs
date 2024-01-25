@@ -129,7 +129,7 @@ fn main() {
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread
 fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
     let i2c_driver = MutexDevice::new(i2c_handle);
-    let mut bsec = Bsec::new(i2c_driver, 25.0);
+    let mut bsec = Bsec::new(i2c_driver, 0.0);
 
     log::info!("Starting BSEC");
     bsec.init().unwrap();
