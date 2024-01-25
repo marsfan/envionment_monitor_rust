@@ -5,7 +5,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
 use embedded_hal_bus::i2c::MutexDevice;
-use environment_monitor_rust::bsec::bsec_datatypes_bindings::BSEC_SAMPLE_RATE_LP;
+use environment_monitor_rust::bsec::bsec_bindings::BSEC_SAMPLE_RATE_LP;
 use environment_monitor_rust::bsec::{Bsec, BsecStructuredOutputs, BsecVirtualSensorData};
 use esp_idf_hal::delay::FreeRtos;
 use esp_idf_hal::i2c::{I2cConfig, I2cDriver};
@@ -133,7 +133,8 @@ fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSend
 
     log::info!("Starting BSEC");
     bsec.init().unwrap();
-    bsec.subscribe_all_non_scan(BSEC_SAMPLE_RATE_LP).unwrap();
+    bsec.subscribe_all_non_scan(BSEC_SAMPLE_RATE_LP as f32)
+        .unwrap();
     let version = bsec.get_version().unwrap();
     log::info!(
         "BSEC Version: {}.{}.{}.{}",

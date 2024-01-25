@@ -1,7 +1,9 @@
 //! Main BSEC logic
 // pub mod bindings;
-pub mod bsec_datatypes_bindings;
-pub mod bsec_interface_bindings;
+// FIXME: Make private and have rust-based wrappers around everything?
+pub mod bsec_bindings;
+
+use self::bsec_bindings::*;
 
 use embedded_hal::i2c::I2c;
 use esp_idf_hal::delay::FreeRtos;
@@ -11,10 +13,6 @@ use esp_idf_hal::delay::FreeRtos;
 use crate::bme68x::{
     BME68xAddr, BME68xData, BME68xDev, BME68xError, BME68xIntf, BME68xOpMode, BME68xOs,
 };
-
-// use self::bindings::*;
-use self::bsec_datatypes_bindings::*;
-use self::bsec_interface_bindings::*;
 
 /// Special version of `bsec_output_t`
 ///
@@ -285,59 +283,79 @@ impl<I2C: I2c> Bsec<I2C> {
         let requested_sensors = [
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: BSEC_OUTPUT_RAW_TEMPERATURE.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_RAW_PRESSURE.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_RAW_HUMIDITY.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_RAW_GAS.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_IAQ.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_STATIC_IAQ.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_CO2_EQUIVALENT.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_BREATH_VOC_EQUIVALENT.try_into().unwrap(),
-            },
-            bsec_sensor_configuration_t {
-                sample_rate,
-                sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE
                     .try_into()
                     .unwrap(),
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE
                     .try_into()
                     .unwrap(),
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: BSEC_OUTPUT_STABILIZATION_STATUS.try_into().unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY
+                    .try_into()
+                    .unwrap(),
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: BSEC_OUTPUT_RUN_IN_STATUS.try_into().unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS
+                    .try_into()
+                    .unwrap(),
             },
             bsec_sensor_configuration_t {
                 sample_rate,
-                sensor_id: BSEC_OUTPUT_GAS_PERCENTAGE.try_into().unwrap(),
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ.try_into().unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ
+                    .try_into()
+                    .unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT
+                    .try_into()
+                    .unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT
+                    .try_into()
+                    .unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE
+                    .try_into()
+                    .unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY
+                    .try_into()
+                    .unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS
+                    .try_into()
+                    .unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS
+                    .try_into()
+                    .unwrap(),
+            },
+            bsec_sensor_configuration_t {
+                sample_rate,
+                sensor_id: bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE
+                    .try_into()
+                    .unwrap(),
             },
         ];
         self.update_subscription(&requested_sensors)
@@ -478,17 +496,37 @@ impl<I2C: I2c> Bsec<I2C> {
     fn process_data(&mut self, data: &BME68xData) -> Result<(), bsec_library_return_t> {
         let mut inputs: Vec<bsec_input_t> = Vec::new();
         // Conditionalyl add sensor data
-        self.add_sig_cond(BSEC_INPUT_PRESSURE, data.pressure, &mut inputs);
-        self.add_sig_cond(BSEC_INPUT_HUMIDITY, data.humidity, &mut inputs);
-        self.add_sig_cond(BSEC_INPUT_TEMPERATURE, data.temperature, &mut inputs);
-        self.add_sig_cond(BSEC_INPUT_GASRESISTOR, data.gas_resistance, &mut inputs);
-        self.add_sig_cond(BSEC_INPUT_HEATSOURCE, self.temp_offset, &mut inputs);
+        self.add_sig_cond(
+            bsec_physical_sensor_t_BSEC_INPUT_PRESSURE,
+            data.pressure,
+            &mut inputs,
+        );
+        self.add_sig_cond(
+            bsec_physical_sensor_t_BSEC_INPUT_HUMIDITY,
+            data.humidity,
+            &mut inputs,
+        );
+        self.add_sig_cond(
+            bsec_physical_sensor_t_BSEC_INPUT_TEMPERATURE,
+            data.temperature,
+            &mut inputs,
+        );
+        self.add_sig_cond(
+            bsec_physical_sensor_t_BSEC_INPUT_GASRESISTOR,
+            data.gas_resistance,
+            &mut inputs,
+        );
+        self.add_sig_cond(
+            bsec_physical_sensor_t_BSEC_INPUT_HEATSOURCE,
+            self.temp_offset,
+            &mut inputs,
+        );
 
         // TODO: BSEC_INPUT_DISABLE_BASELINE_TRACKER
 
         // TODO: Not 100% sure what this is. Need to check datasheet
         self.add_sig_cond(
-            BSEC_INPUT_PROFILE_PART,
+            bsec_physical_sensor_t_BSEC_INPUT_PROFILE_PART,
             if self.sensor_settings.op_mode == BME68xOpMode::ForcedMode.into() {
                 0.0
             } else {
@@ -635,6 +673,7 @@ impl<I2C: I2c> Bsec<I2C> {
                 },
             ];
             let mut num_outputs: u8 = outputs.len().try_into().unwrap();
+
             to_err(unsafe {
                 bsec_do_steps(
                     inputs.as_ptr(),
@@ -680,28 +719,42 @@ impl<I2C: I2c> Bsec<I2C> {
     fn update_output_structure(&mut self, outputs: &mut [bsec_output_t], num_outputs: usize) {
         for output in outputs.iter().take(num_outputs) {
             let data: &mut BsecVirtualSensorData = match u32::from(output.sensor_id) {
-                BSEC_OUTPUT_IAQ => &mut self.outputs.iaq,
-                BSEC_OUTPUT_STATIC_IAQ => &mut self.outputs.static_iaq,
-                BSEC_OUTPUT_CO2_EQUIVALENT => &mut self.outputs.co2_eq,
-                BSEC_OUTPUT_BREATH_VOC_EQUIVALENT => &mut self.outputs.breath_voc_eq,
-                BSEC_OUTPUT_RAW_TEMPERATURE => &mut self.outputs.raw_temp,
-                BSEC_OUTPUT_RAW_PRESSURE => &mut self.outputs.raw_pressure,
-                BSEC_OUTPUT_RAW_HUMIDITY => &mut self.outputs.raw_humidity,
-                BSEC_OUTPUT_RAW_GAS => &mut self.outputs.raw_gas,
-                BSEC_OUTPUT_STABILIZATION_STATUS => &mut self.outputs.stabilization_status,
-                BSEC_OUTPUT_RUN_IN_STATUS => &mut self.outputs.run_in_status,
-                BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE => {
+                bsec_virtual_sensor_t_BSEC_OUTPUT_IAQ => &mut self.outputs.iaq,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_STATIC_IAQ => &mut self.outputs.static_iaq,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_CO2_EQUIVALENT => &mut self.outputs.co2_eq,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_BREATH_VOC_EQUIVALENT => {
+                    &mut self.outputs.breath_voc_eq
+                }
+                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_TEMPERATURE => &mut self.outputs.raw_temp,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_PRESSURE => &mut self.outputs.raw_pressure,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_HUMIDITY => &mut self.outputs.raw_humidity,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS => &mut self.outputs.raw_gas,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_STABILIZATION_STATUS => {
+                    &mut self.outputs.stabilization_status
+                }
+                bsec_virtual_sensor_t_BSEC_OUTPUT_RUN_IN_STATUS => &mut self.outputs.run_in_status,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE => {
                     &mut self.outputs.compensated_temp
                 }
-                BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY => {
+                bsec_virtual_sensor_t_BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY => {
                     &mut self.outputs.compensated_humidity
                 }
-                BSEC_OUTPUT_GAS_PERCENTAGE => &mut self.outputs.gas_percentage,
-                BSEC_OUTPUT_GAS_ESTIMATE_1 => &mut self.outputs.gas_estimate_1,
-                BSEC_OUTPUT_GAS_ESTIMATE_2 => &mut self.outputs.gas_estimate_2,
-                BSEC_OUTPUT_GAS_ESTIMATE_3 => &mut self.outputs.gas_estimate_3,
-                BSEC_OUTPUT_GAS_ESTIMATE_4 => &mut self.outputs.gas_estimate_4,
-                BSEC_OUTPUT_RAW_GAS_INDEX => &mut self.outputs.raw_gas_index,
+                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_PERCENTAGE => {
+                    &mut self.outputs.gas_percentage
+                }
+                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_1 => {
+                    &mut self.outputs.gas_estimate_1
+                }
+                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_2 => {
+                    &mut self.outputs.gas_estimate_2
+                }
+                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_3 => {
+                    &mut self.outputs.gas_estimate_3
+                }
+                bsec_virtual_sensor_t_BSEC_OUTPUT_GAS_ESTIMATE_4 => {
+                    &mut self.outputs.gas_estimate_4
+                }
+                bsec_virtual_sensor_t_BSEC_OUTPUT_RAW_GAS_INDEX => &mut self.outputs.raw_gas_index,
                 _ => panic!("Unknown sensor output type"),
             };
 
