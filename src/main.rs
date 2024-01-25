@@ -72,25 +72,53 @@ fn main() {
     let bsec_transmitter = tx.clone();
     let veml_transmitter = tx.clone();
 
+    let data_mutex = Arc::new(Mutex::new(SensorHubData::new()));
+    let hub_data = data_mutex.clone();
+
     // Start the sensor hub thread
     thread::Builder::new()
         .name("Sensor Hub Thread".to_string())
         .stack_size(4096)
-        .spawn(move || sensor_hub_task(rx))
+        .spawn(move || sensor_hub_task(hub_data, &rx))
         .unwrap();
 
     // Start the sensor threads.
     thread::Builder::new()
         .name("BSEC Thread".to_string())
         .stack_size(4096)
-        .spawn(move || bsec_task(bsec_i2c, bsec_transmitter))
+        .spawn(move || bsec_task(bsec_i2c, &bsec_transmitter))
         .unwrap();
 
     thread::Builder::new()
         .name("VEML Thread".to_string())
         .stack_size(4096)
-        .spawn(move || veml_task(veml_i2c, veml_transmitter))
+        .spawn(move || veml_task(veml_i2c, &veml_transmitter))
         .unwrap();
+
+    // Main thread now handles periodically printing data read from the sensors
+    loop {
+        let sensor_hub_data = data_mutex.lock().unwrap();
+        log_signal("Temp", sensor_hub_data.bsec.compensated_temp);
+        log_signal("Humidity", sensor_hub_data.bsec.compensated_humidity);
+        log_signal("Pressure", sensor_hub_data.bsec.raw_pressure);
+        log_signal("Raw Gas", sensor_hub_data.bsec.raw_gas);
+        log_signal("IAQ", sensor_hub_data.bsec.iaq);
+        log_signal("Static IAQ", sensor_hub_data.bsec.static_iaq);
+        log_signal("eCO2 IAQ", sensor_hub_data.bsec.co2_eq);
+        log_signal("Breath VOC", sensor_hub_data.bsec.breath_voc_eq);
+        log_signal("Gas Percent", sensor_hub_data.bsec.gas_percentage);
+        log_signal("Run In Status", sensor_hub_data.bsec.run_in_status);
+        log_signal("Stabilization", sensor_hub_data.bsec.stabilization_status);
+        log_signal("Raw Temp", sensor_hub_data.bsec.raw_temp);
+        log::info!(
+            "ALS: {}, White: {}, Lux: {}",
+            sensor_hub_data.veml.raw_als,
+            sensor_hub_data.veml.raw_white,
+            sensor_hub_data.veml.lux,
+        );
+
+        FreeRtos::delay_ms(2000);
+    }
 }
 
 /// Task for processing data from the BME688 with BSEC
@@ -99,7 +127,7 @@ fn main() {
 /// * `i2c_handle`: Handle to a Mutex-protected I2C driver used to
 ///     communicate with the sensor.
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread
-fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: mpsc::SyncSender<SensorData>) {
+fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
     let i2c_driver = MutexDevice::new(&i2c_handle);
     let mut bsec = Bsec::new(i2c_driver, 25.0);
 
@@ -120,20 +148,8 @@ fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: mpsc::SyncSende
         bsec.periodic_process(unsafe { esp_idf_sys::esp_timer_get_time() } * 1000)
             .unwrap();
 
-        // Log the data
         let data = bsec.get_output_data();
-        // log_signal("Temp", data.compensated_temp);
-        // log_signal("Humidity", data.compensated_humidity);
-        // log_signal("Pressure", data.raw_pressure);
-        // log_signal("Raw Gas", data.raw_gas);
-        // log_signal("IAQ", data.iaq);
-        // log_signal("Static IAQ", data.static_iaq);
-        // log_signal("eCO2 IAQ", data.co2_eq);
-        // log_signal("Breath VOC", data.breath_voc_eq);
-        // log_signal("Gas Percent", data.gas_percentage);
-        // log_signal("Run In Status", data.run_in_status);
-        // log_signal("Stabilization", data.stabilization_status);
-        // log_signal("Raw Temp", data.raw_temp);
+
         transmitter.send(SensorData::Bsec { data }).unwrap();
 
         let remaining_time =
@@ -149,7 +165,7 @@ fn bsec_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: mpsc::SyncSende
 /// * `i2c_handle`: Handle to a Mutex-protected I2C driver used to
 ///     communicate with the sensor.
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread.
-fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: mpsc::SyncSender<SensorData>) {
+fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
     let i2c_driver = MutexDevice::new(&i2c_handle);
     let mut veml = Veml7700::new(i2c_driver, 1000);
     veml.set_power_state(false).unwrap();
@@ -158,13 +174,6 @@ fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: mpsc::SyncSende
         veml.periodic_process();
         let data = veml.get_outputs();
         transmitter.send(SensorData::Veml { data }).unwrap();
-        // println!("{send_result:?}");
-        // log::info!(
-        //     "Veml ALS: {}, White: {}, lux: {}",
-        //     veml_data.raw_als,
-        //     veml_data.raw_white,
-        //     veml_data.lux
-        // );
 
         FreeRtos::delay_ms(1000);
     }
@@ -174,21 +183,18 @@ fn veml_task(i2c_handle: Arc<Mutex<I2cDriver<'_>>>, transmitter: mpsc::SyncSende
 ///
 /// # Arguments
 /// * `receiver`: The receiver that will get data from the sensor tasks.
-fn sensor_hub_task(receiver: mpsc::Receiver<SensorData>) {
-    // TODO: Pass a mutex guarded sensor_data in that other threads can access as well
-    // Will allow us to have a way to re-distribute the data to other tasks.
-    let mut sensor_data = SensorHubData::new();
+/// * `data_mutex`: Mutex protected sensor data that the sensor hub will collect.
+fn sensor_hub_task(data_mutex: Arc<Mutex<SensorHubData>>, receiver: &mpsc::Receiver<SensorData>) {
     loop {
-        let output = receiver.recv().unwrap();
-        match output {
-            SensorData::Bsec { data } => {
-                sensor_data.bsec = data;
-                log::info!("Got BSEC Data")
-            }
-            SensorData::Veml { data } => {
-                sensor_data.veml = data;
-                log::info!("Got VEML Data")
-            }
+        // Read here first so that we don't try to acquire the mutex until we have
+        // data to act on
+        let received_data = receiver.recv().unwrap();
+        // Lock mutex so we can safely work with the data.
+        let mut locked_mutex = data_mutex.lock().unwrap();
+        // Copy over the most recently send data from the channel into the structure.
+        match received_data {
+            SensorData::Bsec { data } => locked_mutex.bsec = data,
+            SensorData::Veml { data } => locked_mutex.veml = data,
         }
     }
 }
@@ -208,6 +214,7 @@ fn log_signal(name: &str, value: BsecVirtualSensorData) {
 }
 
 /// Structure for holding data from all of the sensors
+#[derive(Clone, Copy)]
 struct SensorHubData {
     /// Data from the BME688 sensor
     pub bsec: BsecStructuredOutputs,
