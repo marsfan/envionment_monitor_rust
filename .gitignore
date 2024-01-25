@@ -2,3 +2,4 @@
 /target
 src/bsec/inc
 src/bsec/bin
+src/private_data.rs

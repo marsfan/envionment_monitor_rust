@@ -1,12 +1,16 @@
 //! Environment Monitoring application
 
 use environment_monitor_rust::veml7700::{Veml7700, VemlOutput};
+use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_svc::nvs::EspDefaultNvsPartition;
+use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec::bsec_bindings::BSEC_SAMPLE_RATE_LP;
 use environment_monitor_rust::bsec::{Bsec, StructuredOutputs, VirtualSensorData};
+use environment_monitor_rust::private_data::{SSID, WIFI_PASS};
 use esp_idf_hal::delay::FreeRtos;
 use esp_idf_hal::i2c::{I2cConfig, I2cDriver};
 use esp_idf_hal::peripherals::Peripherals;
@@ -35,6 +39,7 @@ fn main() {
 
     let peripherals = Peripherals::take().unwrap();
 
+    // Set up I2C
     let i2c_config = I2cConfig::new().baudrate(100.kHz().into());
     let i2c_driver = I2cDriver::new(
         peripherals.i2c0,
@@ -43,6 +48,24 @@ fn main() {
         &i2c_config,
     )
     .unwrap();
+
+    // System event loop
+    let sys_loop = EspSystemEventLoop::take().unwrap();
+    let nvs = EspDefaultNvsPartition::take().unwrap();
+
+    // Set up WiFi
+    let mut wifi_driver =
+        EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs.clone())).unwrap();
+    let mut wifi = BlockingWifi::wrap(&mut wifi_driver, sys_loop.clone()).unwrap();
+    wifi.set_configuration(&Configuration::Client(ClientConfiguration {
+        ssid: SSID.try_into().unwrap(),
+        password: WIFI_PASS.try_into().unwrap(),
+        ..Default::default()
+    }))
+    .unwrap();
+    wifi.start().unwrap();
+    wifi.connect().unwrap();
+    wifi.wait_netif_up().unwrap();
 
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
@@ -67,11 +90,13 @@ fn main() {
     let bsec_i2c = i2c_mutex.clone();
     let veml_i2c = i2c_mutex.clone();
 
+    // Set up channel for sensor tasks to send data over
     let (tx, rx) = mpsc::sync_channel(5);
 
     let bsec_transmitter = tx.clone();
     let veml_transmitter = tx.clone();
 
+    // Set up mutex used to guard data in sensor hub
     let data_mutex = Arc::new(Mutex::new(SensorHubData::new()));
     let hub_data = data_mutex.clone();
 
@@ -109,13 +134,13 @@ fn main() {
         log_signal("Gas Percent", sensor_hub_data.bsec.gas_percentage);
         log_signal("Run In Status", sensor_hub_data.bsec.run_in_status);
         log_signal("Stabilization", sensor_hub_data.bsec.stabilization_status);
-        log_signal("Raw Temp", sensor_hub_data.bsec.raw_temp);
         log::info!(
             "ALS: {}, White: {}, Lux: {}",
             sensor_hub_data.veml.raw_als,
             sensor_hub_data.veml.raw_white,
             sensor_hub_data.veml.lux,
         );
+        log::info!("----------------------------------------");
 
         FreeRtos::delay_ms(2000);
     }
