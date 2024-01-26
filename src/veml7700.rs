@@ -25,6 +25,35 @@ enum VemlRegister {
     ALSInterruptStatus = 0x06,
 }
 
+/// Enumeration of the power saving modes of the sensor
+#[repr(u16)]
+#[derive(Clone, Copy, Debug)]
+pub enum VemlPowerSavingMode {
+    /// Mode 1
+    Mode1 = 0b00,
+
+    /// Mode 2
+    Mode2 = 0b01,
+
+    /// Mode 3
+    Mode3 = 0b10,
+
+    /// Mode 4
+    Mode4 = 0b11,
+}
+
+impl From<u16> for VemlPowerSavingMode {
+    fn from(value: u16) -> Self {
+        match value {
+            0b00 => Self::Mode1,
+            0b01 => Self::Mode2,
+            0b10 => Self::Mode3,
+            0b11 => Self::Mode4,
+            _ => panic!("Can not convert {value} into VemlPowerSavingMode"),
+        }
+    }
+}
+
 /// Enumeration of the possible gain values for the sensor
 #[repr(u16)]
 #[derive(Clone, Copy, Debug)]
@@ -236,6 +265,8 @@ pub struct Veml7700<I2C> {
     last_output: VemlOutput,
 }
 
+// TODO: Add method for computing refresh time and resolution given gain, power saving mode, integration time
+
 impl<I2C: I2c> Veml7700<I2C> {
     /// Create a new instance of the VEML7700 driver.
     pub fn new(i2c: I2C, wait_time: TickType_t) -> Self {
@@ -400,6 +431,121 @@ impl<I2C: I2c> Veml7700<I2C> {
         Ok(self.configuration.shutdown)
     }
 
+    /// Get the ALS interrupt high threshold.
+    ///
+    /// # Returns
+    /// The ALS Interrupt high threshold
+    ///
+    /// # Errors
+    /// Will return an error if the I2C transaction fails.
+    pub fn get_als_int_high_threshold(&mut self) -> Result<u16, I2C::Error> {
+        self.write_read_u16(VemlRegister::ALSHighThreshold)
+    }
+
+    /// Set the ALS Interrupt high threshold.
+    ///
+    /// # Arguments
+    /// * `threshold`: The value to set for the ALS interrupt high threshold
+    ///
+    /// # Errors
+    /// Will return an error if the I2C transaction fails.
+    pub fn set_als_int_high_threshold(&mut self, threshold: u16) -> Result<(), I2C::Error> {
+        self.write_u16(VemlRegister::ALSHighThreshold, threshold)
+    }
+
+    /// Get the ALS interrupt low threshold.
+    ///
+    /// # Returns
+    /// The ALS Interrupt low threshold
+    ///
+    /// # Errors
+    /// Will return an error if the I2C transaction fails.
+    pub fn get_als_int_low_threshold(&mut self) -> Result<u16, I2C::Error> {
+        self.write_read_u16(VemlRegister::ALSLowThreshold)
+    }
+
+    /// Set the ALS Interrupt low threshold.
+    ///
+    /// # Arguments
+    /// * `threshold`: The value to set for the ALS interrupt low threshold
+    ///
+    /// # Errors
+    /// Will return an error if the I2C transaction fails.
+    pub fn set_als_int_low_threshold(&mut self, threshold: u16) -> Result<(), I2C::Error> {
+        self.write_u16(VemlRegister::ALSLowThreshold, threshold)
+    }
+
+    /// Get the interrupt status fo the sensor
+    ///
+    /// # Returns
+    /// Tuple where the first element is a boolean indicating if the low
+    /// threshold has been crosssed, and the second element is a boolean indicating
+    /// if the high threshold has been crossed.
+    ///
+    /// # Errors
+    /// Returns an error if reading the interrupt status register failed.
+    pub fn get_interrupt_status(&mut self) -> Result<(bool, bool), I2C::Error> {
+        let reg_value = self.write_read_u16(VemlRegister::ALSInterruptStatus)?;
+        let low = reg_value & 8000;
+        let high = reg_value & 4000;
+
+        Ok((low > 0, high > 0))
+    }
+
+    /// Set the power saving mode of the sensor.
+    ///
+    /// # Arguments
+    /// * `mode`: The power saving mode to use.
+    ///
+    /// # Errors
+    /// Returns an error if setting the mode over I2C failed.
+    pub fn set_power_saving_mode(&mut self, mode: VemlPowerSavingMode) -> Result<(), I2C::Error> {
+        let enable = self.get_power_saving_status()?;
+        self.write_power_save_reg(mode, enable)
+    }
+
+    /// Get the power saving mode of the sensor.
+    ///
+    /// # Returns
+    /// Current set power saving mode of the sensor
+    ///
+    /// # Errors
+    /// Returns an error if getting the power saving mode failed.
+    ///
+    /// # Panics
+    /// Will panic if converting the mode bits into `VemlPowerSavingMode` fails
+    pub fn get_power_saving_mode(&mut self) -> Result<VemlPowerSavingMode, I2C::Error> {
+        let reg_val = self.write_read_u16(VemlRegister::PowerSaving)?;
+        let mode_bits = (reg_val & 0b110) >> 1;
+
+        Ok(mode_bits.into())
+    }
+
+    /// Enable/Disable use of the power saving mode.
+    ///
+    /// # Arguments
+    /// * `enable`: Whether or not to enable power saving mode.
+    ///
+    /// # Errors
+    /// Returns an error if enabling/disabling power saving failed.
+    pub fn toggle_power_saving(&mut self, enable: bool) -> Result<(), I2C::Error> {
+        let mode = self.get_power_saving_mode()?;
+        self.write_power_save_reg(mode, enable)
+    }
+
+    /// Get whether or not power saving mode is enabled
+    ///
+    /// # Returns
+    /// Booleaning indicating if the power saving mode is enabled
+    ///
+    /// # Errors
+    /// Returrns an error if reading the power saving mode failed.
+    pub fn get_power_saving_status(&mut self) -> Result<bool, I2C::Error> {
+        let reg_val = self.write_read_u16(VemlRegister::PowerSaving)?;
+        let mode_bits = reg_val & 0b01;
+        Ok(mode_bits == 1)
+    }
+
     /// Perform the VEML task's periodic prrocessing
     ///
     /// # Panics
@@ -421,6 +567,20 @@ impl<I2C: I2c> Veml7700<I2C> {
     /// Most recently read data from the sensor
     pub fn get_outputs(&self) -> VemlOutput {
         self.last_output
+    }
+
+    /// Write to the power saving register
+    ///
+    /// # Arguments
+    /// * `mode`: The mode to write to the power saving register
+    /// * `enable`: The value to write to the enable bit
+    fn write_power_save_reg(
+        &mut self,
+        mode: VemlPowerSavingMode,
+        enable: bool,
+    ) -> Result<(), I2C::Error> {
+        let reg_value = ((mode as u16) << 1) | u16::from(enable);
+        self.write_u16(VemlRegister::PowerSaving, reg_value)
     }
 
     /// Get the current scale factor based on gain and integration time
