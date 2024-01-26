@@ -431,7 +431,7 @@ impl<I2C: I2c> Bsec<I2C> {
     ///
     /// # Errors
     /// Returns an error if reading the version fails.
-    // TODO: Rust native version structure
+    // TODO: Rust native version structure?
     pub fn get_version(&self) -> Result<bsec_version_t, BsecError> {
         let mut version = bsec_version_t {
             major: 0,
@@ -479,7 +479,6 @@ impl<I2C: I2c> Bsec<I2C> {
     /// # Errors
     /// Returns an error if subscribing fails
     ///
-    // TODO: Enum for sample rate
     pub fn subscribe_all_non_scan(&self, sample_rate: SampleRate) -> Result<(), BsecError> {
         let requested_sensors = [
             bsec_sensor_configuration_t {
