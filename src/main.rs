@@ -13,8 +13,7 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
 use embedded_hal_bus::i2c::MutexDevice;
-use environment_monitor_rust::bsec::bsec_bindings::BSEC_SAMPLE_RATE_LP;
-use environment_monitor_rust::bsec::{Bsec, StructuredOutputs, VirtualSensorData};
+use environment_monitor_rust::bsec;
 use environment_monitor_rust::private_data::{
     MQTT_PASS, MQTT_TEMP_TOPIC, MQTT_URL, MQTT_USER, SSID, WIFI_PASS,
 };
@@ -30,7 +29,7 @@ enum SensorData {
     /// Data from the BME688
     Bsec {
         /// The data from the sensor
-        data: StructuredOutputs,
+        data: bsec::StructuredOutputs,
     },
 
     /// Data from the VEML7700 sensor.
@@ -163,11 +162,11 @@ fn main() {
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread
 fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
     let i2c_driver = MutexDevice::new(i2c_handle);
-    let mut bsec = Bsec::new(i2c_driver, 0.0);
+    let mut bsec = bsec::Bsec::new(i2c_driver, 0.0);
 
     log::info!("Starting BSEC");
     bsec.init().unwrap();
-    bsec.subscribe_all_non_scan(BSEC_SAMPLE_RATE_LP as f32)
+    bsec.subscribe_all_non_scan(bsec::SampleRate::LowPower)
         .unwrap();
     let version = bsec.get_version().unwrap();
     log::info!(
@@ -278,7 +277,7 @@ fn mqtt_task(
 /// # Arguments
 /// * `name`: The name of the signal to log
 /// * `signal`: The signal to log
-fn log_signal(name: &str, value: VirtualSensorData) {
+fn log_signal(name: &str, value: bsec::VirtualSensorData) {
     log::info!(
         "{name}: {}, Acc: {}, Valid: {}",
         value.signal,
@@ -336,7 +335,7 @@ where
 #[derive(Clone, Copy)]
 struct SensorHubData {
     /// Data from the BME688 sensor
-    pub bsec: StructuredOutputs,
+    pub bsec: bsec::StructuredOutputs,
 
     /// Data from the VEML7700 sensor
     pub veml: VemlOutput,
@@ -346,7 +345,7 @@ impl SensorHubData {
     /// Create a new instance of the structure
     pub fn new() -> Self {
         Self {
-            bsec: StructuredOutputs::new(),
+            bsec: bsec::StructuredOutputs::new(),
             veml: VemlOutput::new(),
         }
     }

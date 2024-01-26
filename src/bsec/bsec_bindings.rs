@@ -5,6 +5,8 @@
 #![allow(non_snake_case)]
 #![allow(missing_docs)]
 #![allow(clippy::unreadable_literal)]
+#![allow(dead_code)]
+#![allow(clippy::missing_docs_in_private_items)]
 
 include!(concat!(env!("OUT_DIR"), "/bsec_bindings.rs"));
 

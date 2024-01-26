@@ -2,7 +2,7 @@
 // pub mod bindings;
 // FIXME: Make private and have rust-based wrappers around everything?
 #[allow(clippy::module_name_repetitions)]
-pub mod bsec_bindings;
+mod bsec_bindings;
 
 use std::num::TryFromIntError;
 
@@ -28,7 +28,9 @@ use self::bsec_bindings::{
     BSEC_OUTPUT_RAW_HUMIDITY, BSEC_OUTPUT_RAW_PRESSURE, BSEC_OUTPUT_RAW_TEMPERATURE,
     BSEC_OUTPUT_RUN_IN_STATUS, BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
     BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE, BSEC_OUTPUT_STABILIZATION_STATUS,
-    BSEC_OUTPUT_STATIC_IAQ, BSEC_W_DOSTEPS_EXCESSOUTPUTS, BSEC_W_DOSTEPS_GASINDEXMISS,
+    BSEC_OUTPUT_STATIC_IAQ, BSEC_SAMPLE_RATE_CONT, BSEC_SAMPLE_RATE_DISABLED, BSEC_SAMPLE_RATE_LP,
+    BSEC_SAMPLE_RATE_SCAN, BSEC_SAMPLE_RATE_ULP, BSEC_SAMPLE_RATE_ULP_MEASUREMENT_ON_DEMAND,
+    BSEC_W_DOSTEPS_EXCESSOUTPUTS, BSEC_W_DOSTEPS_GASINDEXMISS,
     BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE, BSEC_W_SC_CALL_TIMING_VIOLATION,
     BSEC_W_SC_MODEXCEEDULPTIMELIMIT, BSEC_W_SC_MODINSUFFICIENTWAITTIME, BSEC_W_SU_MODINNOULP,
     BSEC_W_SU_UNKNOWNOUTPUTGATE,
@@ -40,6 +42,44 @@ use esp_idf_hal::delay::FreeRtos;
 use crate::bme68x::{
     BME68xAddr, BME68xData, BME68xDev, BME68xError, BME68xIntf, BME68xOpMode, BME68xOs,
 };
+
+/// Enumeration of valid sample rates for the sensor
+#[allow(clippy::module_name_repetitions)]
+#[derive(Debug, Clone, Copy)]
+pub enum SampleRate {
+    /// Disable Sampling
+    Disabled,
+
+    /// Ultra Low Power Sampling (every 5 minutes)
+    UltraLowPower,
+
+    /// Low Power Sampling (Every 3 seconds)
+    LowPower,
+
+    /// Continuous Sampling (Every second)
+    Continuous,
+
+    /// Scan Sampling (Every 18 seconds)
+    Scan,
+
+    /// ULP+ On Demand Measurement
+    ULPOnDemand,
+}
+
+impl From<SampleRate> for f32 {
+    fn from(value: SampleRate) -> Self {
+        let result = match value {
+            SampleRate::Disabled => BSEC_SAMPLE_RATE_DISABLED,
+            SampleRate::UltraLowPower => BSEC_SAMPLE_RATE_ULP,
+            SampleRate::LowPower => BSEC_SAMPLE_RATE_LP,
+            SampleRate::Continuous => BSEC_SAMPLE_RATE_CONT,
+            SampleRate::Scan => BSEC_SAMPLE_RATE_SCAN,
+            SampleRate::ULPOnDemand => BSEC_SAMPLE_RATE_ULP_MEASUREMENT_ON_DEMAND,
+        };
+        #[allow(clippy::cast_possible_truncation)]
+        (result as f32)
+    }
+}
 
 /// Rust-Native wrapper for the BSEC Error codes.
 /// Has a few additional error codes beyond what the BSEC library provides.
@@ -440,58 +480,58 @@ impl<I2C: I2c> Bsec<I2C> {
     /// Returns an error if subscribing fails
     ///
     // TODO: Enum for sample rate
-    pub fn subscribe_all_non_scan(&self, sample_rate: f32) -> Result<(), BsecError> {
+    pub fn subscribe_all_non_scan(&self, sample_rate: SampleRate) -> Result<(), BsecError> {
         let requested_sensors = [
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_RAW_TEMPERATURE.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_RAW_PRESSURE.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_RAW_HUMIDITY.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_RAW_GAS.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_STATIC_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_CO2_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_BREATH_VOC_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_STABILIZATION_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_RUN_IN_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate,
+                sample_rate: sample_rate.into(),
                 sensor_id: BSEC_OUTPUT_GAS_PERCENTAGE.try_into()?,
             },
         ];
