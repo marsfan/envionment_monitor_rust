@@ -54,3 +54,34 @@ impl Default for bsec_output_t {
         Self::new()
     }
 }
+
+impl bsec_bme_settings_t {
+    /// Create a new instance of `bsec_bme_settings_t`
+    ///
+    /// # Returns
+    /// A new instance of `bsec_bme_settings_t` where all elements
+    /// are zeroed out.
+    pub fn new() -> Self {
+        Self {
+            heater_duration: 0,
+            heater_duration_profile: [0; 10],
+            heater_profile_len: 0,
+            heater_temperature: 0,
+            heater_temperature_profile: [0; 10],
+            humidity_oversampling: 0,
+            next_call: 0,
+            op_mode: 0,
+            pressure_oversampling: 0,
+            process_data: 0,
+            run_gas: 0,
+            temperature_oversampling: 0,
+            trigger_measurement: 0,
+        }
+    }
+}
+
+impl Default for bsec_bme_settings_t {
+    fn default() -> Self {
+        Self::new()
+    }
+}

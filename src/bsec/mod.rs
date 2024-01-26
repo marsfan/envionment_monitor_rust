@@ -349,7 +349,6 @@ pub struct Bsec<I2C> {
     curr_time_ns: i64,
 }
 
-// TODO: Rust enum for error code
 // TODO: Rust enum for bsec_virtual_sensor_t
 
 impl<I2C: I2c> Bsec<I2C> {
@@ -358,7 +357,6 @@ impl<I2C: I2c> Bsec<I2C> {
     /// * `i2c`: The i2c bus to use for communication with the sensor
     /// * `temp_offset`: The offset to apply to the temperature measurement, to correct for sensor or enclosure bias.
     pub fn new(i2c: I2C, temp_offset: f32) -> Self {
-        // TODO: Finish initialzers
         Self {
             bme: BME68xDev::new(
                 i2c,
@@ -370,21 +368,7 @@ impl<I2C: I2c> Bsec<I2C> {
             outputs: StructuredOutputs::new(),
             temp_offset,
             // FIXME: Can we create a ::new() method for this?
-            sensor_settings: bsec_bme_settings_t {
-                heater_duration: 0,
-                heater_duration_profile: [0; 10],
-                heater_profile_len: 0,
-                heater_temperature: 0,
-                heater_temperature_profile: [0; 10],
-                humidity_oversampling: 0,
-                next_call: 0,
-                op_mode: 0,
-                pressure_oversampling: 0,
-                process_data: 0,
-                run_gas: 0,
-                temperature_oversampling: 0,
-                trigger_measurement: 0,
-            },
+            sensor_settings: bsec_bme_settings_t::new(),
             curr_time_ns: 0,
         }
     }
