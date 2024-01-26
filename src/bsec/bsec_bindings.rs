@@ -16,11 +16,18 @@ impl bsec_sensor_configuration_t {
     /// # Returns
     /// A new instance of `bsec_sensor_configuration_t` where all
     ///  elements are zeroed out.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             sample_rate: 0.0,
             sensor_id: 0,
         }
+    }
+}
+
+impl Default for bsec_sensor_configuration_t {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -30,6 +37,7 @@ impl bsec_output_t {
     /// # Returns
     /// A new instance of `bsec_output_t` where all elements are
     /// zeroed out.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             accuracy: 0,
@@ -38,5 +46,11 @@ impl bsec_output_t {
             signal_dimensions: 0,
             time_stamp: 0,
         }
+    }
+}
+
+impl Default for bsec_output_t {
+    fn default() -> Self {
+        Self::new()
     }
 }
