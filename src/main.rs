@@ -1,16 +1,23 @@
 //! Environment Monitoring application
 
 use environment_monitor_rust::veml7700::{Veml7700, VemlOutput};
+use esp_idf_hal::cpu::Core;
+use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
+use esp_idf_svc::mqtt::client::{EspMqttClient, MqttClientConfiguration, QoS};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
+use esp_idf_sys::esp_crt_bundle_attach;
+use std::io;
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread;
+use std::thread::{self, JoinHandle};
 
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec::bsec_bindings::BSEC_SAMPLE_RATE_LP;
 use environment_monitor_rust::bsec::{Bsec, StructuredOutputs, VirtualSensorData};
-use environment_monitor_rust::private_data::{SSID, WIFI_PASS};
+use environment_monitor_rust::private_data::{
+    MQTT_PASS, MQTT_TEMP_TOPIC, MQTT_URL, MQTT_USER, SSID, WIFI_PASS,
+};
 use esp_idf_hal::delay::FreeRtos;
 use esp_idf_hal::i2c::{I2cConfig, I2cDriver};
 use esp_idf_hal::peripherals::Peripherals;
@@ -99,26 +106,27 @@ fn main() {
     // Set up mutex used to guard data in sensor hub
     let data_mutex = Arc::new(Mutex::new(SensorHubData::new()));
     let hub_data = data_mutex.clone();
+    let adafruit_io_data = data_mutex.clone();
 
-    // Start the sensor hub thread
-    thread::Builder::new()
-        .name("Sensor Hub Thread".to_string())
-        .stack_size(4096)
-        .spawn(move || sensor_hub_task(&hub_data, &rx))
-        .unwrap();
+    spawn_thread(b"Sensor Hub Thread\0", 4096, 2, None, move || {
+        sensor_hub_task(&hub_data, rx)
+    })
+    .unwrap();
 
-    // Start the sensor threads.
-    thread::Builder::new()
-        .name("BSEC Thread".to_string())
-        .stack_size(4096)
-        .spawn(move || bsec_task(&bsec_i2c, &bsec_transmitter))
-        .unwrap();
+    spawn_thread(b"BSEC Thread\0", 4096, 1, None, move || {
+        bsec_task(&bsec_i2c, &bsec_transmitter)
+    })
+    .unwrap();
 
-    thread::Builder::new()
-        .name("VEML Thread".to_string())
-        .stack_size(4096)
-        .spawn(move || veml_task(&veml_i2c, &veml_transmitter))
-        .unwrap();
+    spawn_thread(b"VEML Thread\0", 4096, 1, None, move || {
+        veml_task(&veml_i2c, &veml_transmitter)
+    })
+    .unwrap();
+
+    spawn_thread(b"Adafruit IO Thread\0", 4096, 1, None, move || {
+        mqtt_task(&adafruit_io_data, MQTT_URL, MQTT_USER, MQTT_PASS)
+    })
+    .unwrap();
 
     // Main thread now handles periodically printing data read from the sensors
     loop {
@@ -181,7 +189,13 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
         let remaining_time =
             bsec.get_next_call_time_us() - unsafe { esp_idf_sys::esp_timer_get_time() };
 
-        FreeRtos::delay_us(remaining_time.try_into().unwrap());
+        let remaining_time_32 = u32::try_from(remaining_time);
+        if remaining_time_32.is_ok() {
+            FreeRtos::delay_us(remaining_time_32.unwrap());
+        } else {
+            log::warn!("Bad Remaining Time: {remaining_time}");
+            FreeRtos::delay_us(u32::MAX);
+        }
     }
 }
 
@@ -210,7 +224,7 @@ fn veml_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
 /// # Arguments
 /// * `receiver`: The receiver that will get data from the sensor tasks.
 /// * `data_mutex`: Mutex protected sensor data that the sensor hub will collect.
-fn sensor_hub_task(data_mutex: &Arc<Mutex<SensorHubData>>, receiver: &mpsc::Receiver<SensorData>) {
+fn sensor_hub_task(data_mutex: &Arc<Mutex<SensorHubData>>, receiver: mpsc::Receiver<SensorData>) {
     loop {
         // Read here first so that we don't try to acquire the mutex until we have
         // data to act on
@@ -222,6 +236,39 @@ fn sensor_hub_task(data_mutex: &Arc<Mutex<SensorHubData>>, receiver: &mpsc::Rece
             SensorData::Bsec { data } => locked_mutex.bsec = data,
             SensorData::Veml { data } => locked_mutex.veml = data,
         }
+    }
+}
+
+/// Task for sending data to a MQTT Broker
+///
+/// # Arguments
+/// * `data_mutex`: The mutex for the sensor hub data
+/// * `broker_url`: The MQTT Broker URL
+/// * `username`: MQTT Broker Username
+/// * `password`: MQTT Broker Password
+fn mqtt_task(
+    data_mutex: &Arc<Mutex<SensorHubData>>,
+    broker_url: &str,
+    username: &str,
+    password: &str,
+) {
+    let mqtt_config = MqttClientConfiguration {
+        crt_bundle_attach: Some(esp_crt_bundle_attach),
+        username: Some(username),
+        password: Some(password),
+        ..Default::default()
+    };
+
+    let mut client = EspMqttClient::new(broker_url, &mqtt_config, |_message_event| {}).unwrap();
+
+    loop {
+        let locked_mutex = data_mutex.lock().unwrap();
+        let payload = format!("{}", locked_mutex.bsec.compensated_temp.signal);
+        client
+            .publish(MQTT_TEMP_TOPIC, QoS::AtMostOnce, false, payload.as_bytes())
+            .unwrap();
+
+        FreeRtos::delay_ms(6000);
     }
 }
 
@@ -237,6 +284,51 @@ fn log_signal(name: &str, value: VirtualSensorData) {
         value.accuracy,
         value.valid,
     );
+}
+
+/// Spawn a thread with extra ESP-32 specific options
+///
+/// # Arguments
+/// * `name`: The name to give the thread
+/// * `stack_size`: The size of the stack to give the thread.
+/// * `priority`: The task priority. Higher number = higher prioritty
+/// * `pinning`: What core to pin the task to (if any)
+/// * `task`: The actual task
+// FIXME: How can we pass in a slice and auto-append null there?
+fn spawn_thread<F, T>(
+    name: &'static [u8],
+    stack_size: usize,
+    priority: u8,
+    pinning: Option<Core>,
+    task: F,
+) -> io::Result<JoinHandle<T>>
+where
+    F: FnOnce() -> T,
+    F: Send + 'static,
+    T: Send + 'static,
+{
+    ThreadSpawnConfiguration {
+        name: Some(name),
+        stack_size,
+        priority,
+        pin_to_core: pinning,
+        ..Default::default()
+    }
+    .set()
+    .unwrap();
+
+    let thread_handle = thread::Builder::new()
+        .name(
+            String::from_utf8(Vec::from(name))
+                .unwrap()
+                .replace('\x00', ""),
+        )
+        .stack_size(stack_size)
+        .spawn(task);
+
+    ThreadSpawnConfiguration::default().set().unwrap();
+
+    thread_handle
 }
 
 /// Structure for holding data from all of the sensors

@@ -11,7 +11,11 @@ There are a few things needed to build.
 2. Before using `cargo build`, source the `~/export_esp.sh` file that `esup` added to your home directory
 3. The file `src/private_data.rs` which contains the following public constants.
 
-|    Name     |  Type  |    Purpose     |
-| ----------- | ------ | -------------- |
-| `SSID`      | `&str` | WiFi SSID Name |
-| `WIFI_PASS` | `&str` | WiFi Password  |
+|       Name        |  Type  |                  Purpose                   |
+| ----------------- | ------ | ------------------------------------------ |
+| `SSID`            | `&str` | WiFi SSID Name                             |
+| `WIFI_PASS`       | `&str` | WiFi Password                              |
+| `MQTT_URL`        | `&str` | MQTT Broker URL                            |
+| `MQTT_USER`       | `&str` | MQTT Account Username                      |
+| `MQTT_PASS`       | `&str` | MQTT Account password                      |
+| `MQTT_TEMP_TOPIC` | `&str` | MQTT Topic for publishing the temperature. |
