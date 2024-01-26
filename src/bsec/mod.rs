@@ -431,41 +431,9 @@ impl<I2C: I2c> Bsec<I2C> {
         requested_virtual_sensors: &[bsec_sensor_configuration_t],
     ) -> Result<(), BsecError> {
         // FIXME: See if we can add derive for copy to the struct to make this smaller.
-        let mut required_sensor_settings: [bsec_sensor_configuration_t;
-            BSEC_MAX_PHYSICAL_SENSOR as usize] = [
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-            bsec_sensor_configuration_t {
-                sample_rate: 0.0,
-                sensor_id: 0,
-            },
-        ];
+        let mut required_sensor_settings =
+            [bsec_sensor_configuration_t::new(); BSEC_MAX_PHYSICAL_SENSOR as usize];
+
         let mut n_required_sensor_settings: u8 = BSEC_MAX_PHYSICAL_SENSOR.try_into()?;
         to_err(unsafe {
             bsec_update_subscription(
@@ -703,141 +671,8 @@ impl<I2C: I2c> Bsec<I2C> {
 
         if !inputs.is_empty() {
             // FIXME: Clone/copy impl for the structure?
-            let mut outputs: [bsec_output_t; BSEC_NUMBER_OUTPUTS as usize] = [
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-                bsec_output_t {
-                    accuracy: 0,
-                    sensor_id: 0,
-                    signal: 0.0,
-                    signal_dimensions: 0,
-                    time_stamp: 0,
-                },
-            ];
+            let mut outputs = [bsec_output_t::new(); BSEC_NUMBER_OUTPUTS as usize];
+
             let mut num_outputs: u8 = outputs.len().try_into()?;
             to_err(unsafe {
                 bsec_do_steps(
