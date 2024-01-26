@@ -25,6 +25,7 @@ use esp_idf_hal::prelude::*;
 
 /// Enumeration to hold data sent from sensor tasks to the sensor hub task.
 #[derive(Debug)]
+#[allow(clippy::large_enum_variant)]
 enum SensorData {
     /// Data from the BME688
     Bsec {
@@ -65,8 +66,8 @@ fn main() {
         EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs.clone())).unwrap();
     let mut wifi = BlockingWifi::wrap(&mut wifi_driver, sys_loop.clone()).unwrap();
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-        ssid: SSID.try_into().unwrap(),
-        password: WIFI_PASS.try_into().unwrap(),
+        ssid: SSID.into(),
+        password: WIFI_PASS.into(),
         ..Default::default()
     }))
     .unwrap();
@@ -109,22 +110,22 @@ fn main() {
     let adafruit_io_data = data_mutex.clone();
 
     spawn_thread(b"Sensor Hub Thread\0", 4096, 2, None, move || {
-        sensor_hub_task(&hub_data, rx)
+        sensor_hub_task(&hub_data, &rx);
     })
     .unwrap();
 
     spawn_thread(b"BSEC Thread\0", 4096, 1, None, move || {
-        bsec_task(&bsec_i2c, &bsec_transmitter)
+        bsec_task(&bsec_i2c, &bsec_transmitter);
     })
     .unwrap();
 
     spawn_thread(b"VEML Thread\0", 4096, 1, None, move || {
-        veml_task(&veml_i2c, &veml_transmitter)
+        veml_task(&veml_i2c, &veml_transmitter);
     })
     .unwrap();
 
     spawn_thread(b"Adafruit IO Thread\0", 4096, 1, None, move || {
-        mqtt_task(&adafruit_io_data, MQTT_URL, MQTT_USER, MQTT_PASS)
+        mqtt_task(&adafruit_io_data, MQTT_URL, MQTT_USER, MQTT_PASS);
     })
     .unwrap();
 
@@ -190,8 +191,8 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
             bsec.get_next_call_time_us() - unsafe { esp_idf_sys::esp_timer_get_time() };
 
         let remaining_time_32 = u32::try_from(remaining_time);
-        if remaining_time_32.is_ok() {
-            FreeRtos::delay_us(remaining_time_32.unwrap());
+        if let Ok(remaining_time_32) = remaining_time_32 {
+            FreeRtos::delay_us(remaining_time_32);
         } else {
             log::warn!("Bad Remaining Time: {remaining_time}");
             FreeRtos::delay_us(u32::MAX);
@@ -224,7 +225,7 @@ fn veml_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
 /// # Arguments
 /// * `receiver`: The receiver that will get data from the sensor tasks.
 /// * `data_mutex`: Mutex protected sensor data that the sensor hub will collect.
-fn sensor_hub_task(data_mutex: &Arc<Mutex<SensorHubData>>, receiver: mpsc::Receiver<SensorData>) {
+fn sensor_hub_task(data_mutex: &Arc<Mutex<SensorHubData>>, receiver: &mpsc::Receiver<SensorData>) {
     loop {
         // Read here first so that we don't try to acquire the mutex until we have
         // data to act on
