@@ -66,9 +66,13 @@ pub enum SampleRate {
     ULPOnDemand,
 }
 
-impl From<SampleRate> for f32 {
-    fn from(value: SampleRate) -> Self {
-        let result = match value {
+impl SampleRate {
+    /// Get the sample rate in hertz.
+    ///
+    /// # Returns
+    /// The sample rate in hertz
+    fn get_hz(&self) -> f32 {
+        let result = match self {
             SampleRate::Disabled => BSEC_SAMPLE_RATE_DISABLED,
             SampleRate::UltraLowPower => BSEC_SAMPLE_RATE_ULP,
             SampleRate::LowPower => BSEC_SAMPLE_RATE_LP,
@@ -480,57 +484,58 @@ impl<I2C: I2c> Bsec<I2C> {
     /// Returns an error if subscribing fails
     ///
     pub fn subscribe_all_non_scan(&self, sample_rate: SampleRate) -> Result<(), BsecError> {
+        let sample_rate = sample_rate.get_hz();
         let requested_sensors = [
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_RAW_TEMPERATURE.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_RAW_PRESSURE.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_RAW_HUMIDITY.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_RAW_GAS.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_STATIC_IAQ.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_CO2_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_BREATH_VOC_EQUIVALENT.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_STABILIZATION_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_RUN_IN_STATUS.try_into()?,
             },
             bsec_sensor_configuration_t {
-                sample_rate: sample_rate.into(),
+                sample_rate,
                 sensor_id: BSEC_OUTPUT_GAS_PERCENTAGE.try_into()?,
             },
         ];
