@@ -70,7 +70,7 @@ impl SampleRate {
     ///
     /// # Returns
     /// The sample rate in hertz
-    fn get_hz(&self) -> f32 {
+    fn get_hz(self) -> f32 {
         let result = match self {
             SampleRate::Disabled => BSEC_SAMPLE_RATE_DISABLED,
             SampleRate::UltraLowPower => BSEC_SAMPLE_RATE_ULP,
