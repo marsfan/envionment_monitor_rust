@@ -195,7 +195,7 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
             // FIXME: Find out why delay_us was removed
             FreeRtos::delay_ms(remaining_time_32 / 1000);
         } else {
-            log::warn!("Bad Remaining Time: {remaining_time}");
+            log::warn!("Bad Remaining Time: {remaining_time}. Delaying for 1 second instead");
             FreeRtos::delay_ms(1000);
         }
     }
@@ -281,7 +281,7 @@ fn mqtt_task(
         // Get The data and release the mutex as quickly as possible.
 
         let locked_mutex = data_mutex.lock().unwrap();
-        let data = locked_mutex.clone();
+        let data = *locked_mutex;
         drop(locked_mutex);
 
         let payload = format!("{}", data.bsec.compensated_temp.signal);
