@@ -7,7 +7,7 @@ use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::mqtt::client::{EspMqttClient, MqttClientConfiguration, QoS};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
-use esp_idf_sys::esp_crt_bundle_attach;
+use esp_idf_sys::{esp_crt_bundle_attach, esp_mqtt_client_config_t_credentials_t_authentication_t};
 use std::io;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -65,8 +65,8 @@ fn main() {
         EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs.clone())).unwrap();
     let mut wifi = BlockingWifi::wrap(&mut wifi_driver, sys_loop.clone()).unwrap();
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-        ssid: SSID.into(),
-        password: WIFI_PASS.into(),
+        ssid: SSID.try_into().unwrap(),
+        password: WIFI_PASS.try_into().unwrap(),
         ..Default::default()
     }))
     .unwrap();
@@ -191,10 +191,10 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
 
         let remaining_time_32 = u32::try_from(remaining_time);
         if let Ok(remaining_time_32) = remaining_time_32 {
-            FreeRtos::delay_us(remaining_time_32);
+            FreeRtos::delay_ms(remaining_time_32 * 1000);
         } else {
             log::warn!("Bad Remaining Time: {remaining_time}");
-            FreeRtos::delay_us(u32::MAX);
+            FreeRtos::delay_ms(1000);
         }
     }
 }
@@ -259,11 +259,13 @@ fn mqtt_task(
         ..Default::default()
     };
 
-    let mut client = EspMqttClient::new(broker_url, &mqtt_config, |_message_event| {}).unwrap();
+    let (mut client, mut connection) = EspMqttClient::new(broker_url, &mqtt_config).unwrap();
 
     loop {
         let locked_mutex = data_mutex.lock().unwrap();
         let payload = format!("{}", locked_mutex.bsec.compensated_temp.signal);
+
+        // FIXME: THis is not working
         client
             .publish(MQTT_TEMP_TOPIC, QoS::AtMostOnce, false, payload.as_bytes())
             .unwrap();
