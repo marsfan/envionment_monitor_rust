@@ -1,6 +1,5 @@
 //! Main BSEC logic
 // pub mod bindings;
-// FIXME: Make private and have rust-based wrappers around everything?
 #[allow(clippy::module_name_repetitions)]
 mod bsec_bindings;
 
@@ -411,7 +410,6 @@ impl<I2C: I2c> Bsec<I2C> {
             ),
             outputs: StructuredOutputs::new(),
             temp_offset,
-            // FIXME: Can we create a ::new() method for this?
             sensor_settings: bsec_bme_settings_t::new(),
             curr_time_ns: 0,
         }
@@ -458,7 +456,6 @@ impl<I2C: I2c> Bsec<I2C> {
         &self,
         requested_virtual_sensors: &[bsec_sensor_configuration_t],
     ) -> Result<(), BsecError> {
-        // FIXME: See if we can add derive for copy to the struct to make this smaller.
         let mut required_sensor_settings =
             [bsec_sensor_configuration_t::new(); BSEC_MAX_PHYSICAL_SENSOR as usize];
 
@@ -552,7 +549,6 @@ impl<I2C: I2c> Bsec<I2C> {
     ///
     /// # Panics
     /// Panics if an attempt to use the sensor's sequential mode is made.
-    // FIXME: Return either library or bme68x error based on error code
     pub fn periodic_process(&mut self, timestamp_ns: i64) -> Result<(), BsecError> {
         let mut sensor_settings = bsec_bme_settings_t {
             heater_duration: 0,
@@ -698,7 +694,6 @@ impl<I2C: I2c> Bsec<I2C> {
         );
 
         if !inputs.is_empty() {
-            // FIXME: Clone/copy impl for the structure?
             let mut outputs = [bsec_output_t::new(); BSEC_NUMBER_OUTPUTS as usize];
 
             let mut num_outputs: u8 = outputs.len().try_into()?;
