@@ -7,7 +7,7 @@ use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::mqtt::client::{EspMqttClient, MqttClientConfiguration, QoS};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
-use esp_idf_sys::{esp_crt_bundle_attach, esp_mqtt_client_config_t_credentials_t_authentication_t};
+use esp_idf_sys::esp_crt_bundle_attach;
 use std::io;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -179,6 +179,7 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
 
     loop {
         // FIXME: Find safe alternative
+        // Shjould be EspTimerService
         bsec.periodic_process(unsafe { esp_idf_sys::esp_timer_get_time() } * 1000)
             .unwrap();
 
@@ -191,7 +192,8 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
 
         let remaining_time_32 = u32::try_from(remaining_time);
         if let Ok(remaining_time_32) = remaining_time_32 {
-            FreeRtos::delay_ms(remaining_time_32 * 1000);
+            // FIXME: Find out why delay_us was removed
+            FreeRtos::delay_ms(remaining_time_32 / 1000);
         } else {
             log::warn!("Bad Remaining Time: {remaining_time}");
             FreeRtos::delay_ms(1000);
@@ -261,9 +263,28 @@ fn mqtt_task(
 
     let (mut client, mut connection) = EspMqttClient::new(broker_url, &mqtt_config).unwrap();
 
+    // Need this for some reason to make the MQTT publishing working. Look at the esp-idf-svc mqtt client example
+    std::thread::Builder::new()
+        .stack_size(6000)
+        .spawn(move || {
+            log::info!("MQTT Listening for messages");
+
+            while let Ok(event) = connection.next() {
+                log::info!("[Queue] Event: {}", event.payload());
+            }
+
+            log::info!("Connection closed");
+        })
+        .unwrap();
+
     loop {
+        // Get The data and release the mutex as quickly as possible.
+
         let locked_mutex = data_mutex.lock().unwrap();
-        let payload = format!("{}", locked_mutex.bsec.compensated_temp.signal);
+        let data = locked_mutex.clone();
+        drop(locked_mutex);
+
+        let payload = format!("{}", data.bsec.compensated_temp.signal);
 
         // FIXME: THis is not working
         client

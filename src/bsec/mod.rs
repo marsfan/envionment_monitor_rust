@@ -403,7 +403,7 @@ impl<I2C: I2c> Bsec<I2C> {
                 BME68xAddr::HIGH,
                 25,
                 BME68xIntf::I2CIntf,
-                Box::new(|delay| FreeRtos::delay_ms(delay * 1000)),
+                Box::new(|delay| FreeRtos::delay_ms(delay / 1000)),
             ),
             outputs: StructuredOutputs::new(),
             temp_offset,
