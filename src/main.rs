@@ -6,6 +6,7 @@ use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::mqtt::client::{EspMqttClient, MqttClientConfiguration, QoS};
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
+use esp_idf_svc::timer::EspTimerService;
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 use esp_idf_sys::esp_crt_bundle_attach;
 use std::io;
@@ -177,10 +178,10 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
         version.minor_bugfix
     );
 
+    let timer_service = EspTimerService::new().unwrap();
+
     loop {
-        // FIXME: Find safe alternative
-        // Shjould be EspTimerService
-        bsec.periodic_process(unsafe { esp_idf_sys::esp_timer_get_time() } * 1000)
+        bsec.periodic_process(timer_service.now().as_nanos().try_into().unwrap())
             .unwrap();
 
         let data = bsec.get_output_data();
@@ -188,15 +189,14 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
         transmitter.send(SensorData::Bsec { data }).unwrap();
 
         let remaining_time =
-            bsec.get_next_call_time_us() - unsafe { esp_idf_sys::esp_timer_get_time() };
+            bsec.get_next_call_time_us() - i64::try_from(timer_service.now().as_micros()).unwrap();
 
         let remaining_time_32 = u32::try_from(remaining_time);
         if let Ok(remaining_time_32) = remaining_time_32 {
-            // FIXME: Find out why delay_us was removed
             FreeRtos::delay_ms(remaining_time_32 / 1000);
         } else {
-            log::warn!("Bad Remaining Time: {remaining_time}. Delaying for 1 second instead");
-            FreeRtos::delay_ms(1000);
+            log::warn!("Bad Remaining Time: {remaining_time}. Delaying for 3 seconds instead");
+            FreeRtos::delay_ms(3000);
         }
     }
 }
