@@ -19,3 +19,5 @@ There are a few things needed to build.
 | `MQTT_USER`       | `&str` | MQTT Account Username                      |
 | `MQTT_PASS`       | `&str` | MQTT Account password                      |
 | `MQTT_TEMP_TOPIC` | `&str` | MQTT Topic for publishing the temperature. |
+
+See the file [dummy_private_data.rs](src/dummy_private_data.rs) for an example
