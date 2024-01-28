@@ -39,8 +39,8 @@ esp-idf-hal = "0.*"
 thiserror = "1.0.56"
 esp-idf-sys = "0.*"
 # FIXME: Bump these to 1.0.0 once esp-idf-hal supports it
-embedded-hal = "1.0.0-rc.1"
-embedded-hal-bus = { version = "0.1.0-rc.1", features = ["std"] }
+embedded-hal = "1.0.0"
+embedded-hal-bus = { version = "0.1.0", features = ["std"] }
 
 [build-dependencies]
 bindgen = "0.69.2"
