@@ -33,8 +33,11 @@ pub const AIO_ECO2_TOPIC: &str = "topics/dummy";
 /// IAQ Topic
 pub const AIO_IAQ_TOPIC: &str = "topics/dummy";
 
-/// Lux Topic
-pub const AIO_LUX_TOPIC: &str = "topics/dummy";
+/// Static IAQ
+pub const AIO_STATIC_IAQ: &str = "topics/dummy";
 
 /// TVOC Topic
 pub const AIO_TVOC_TOPIC: &str = "topics/dummy";
+
+/// Lux Topic
+pub const AIO_LUX_TOPIC: &str = "topics/dummy";
