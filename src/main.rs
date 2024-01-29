@@ -1,5 +1,6 @@
 //! Environment Monitoring application
 
+use environment_monitor_rust::interconnect::SensorHubData;
 use environment_monitor_rust::veml7700::{Veml7700, VemlOutput};
 use esp_idf_hal::cpu::Core;
 use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
@@ -359,24 +360,4 @@ where
     ThreadSpawnConfiguration::default().set().unwrap();
 
     thread_handle
-}
-
-/// Structure for holding data from all of the sensors
-#[derive(Clone, Copy)]
-struct SensorHubData {
-    /// Data from the BME688 sensor
-    pub bsec: bsec::StructuredOutputs,
-
-    /// Data from the VEML7700 sensor
-    pub veml: VemlOutput,
-}
-
-impl SensorHubData {
-    /// Create a new instance of the structure
-    pub fn new() -> Self {
-        Self {
-            bsec: bsec::StructuredOutputs::new(),
-            veml: VemlOutput::new(),
-        }
-    }
 }
