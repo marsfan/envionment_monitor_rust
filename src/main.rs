@@ -15,9 +15,7 @@ use std::thread::{self, JoinHandle};
 
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec;
-use environment_monitor_rust::private_data::{
-    MQTT_PASS, MQTT_TEMP_TOPIC, MQTT_URL, MQTT_USER, SSID, WIFI_PASS,
-};
+use environment_monitor_rust::private_data;
 use esp_idf_hal::delay::FreeRtos;
 use esp_idf_hal::i2c::{I2cConfig, I2cDriver};
 use esp_idf_hal::peripherals::Peripherals;
@@ -66,8 +64,8 @@ fn main() {
         EspWifi::new(peripherals.modem, sys_loop.clone(), Some(nvs.clone())).unwrap();
     let mut wifi = BlockingWifi::wrap(&mut wifi_driver, sys_loop.clone()).unwrap();
     wifi.set_configuration(&Configuration::Client(ClientConfiguration {
-        ssid: SSID.try_into().unwrap(),
-        password: WIFI_PASS.try_into().unwrap(),
+        ssid: private_data::SSID.try_into().unwrap(),
+        password: private_data::WIFI_PASS.try_into().unwrap(),
         ..Default::default()
     }))
     .unwrap();
@@ -125,7 +123,12 @@ fn main() {
     .unwrap();
 
     spawn_thread(b"Adafruit IO Thread\0", 4096, 1, None, move || {
-        mqtt_task(&adafruit_io_data, MQTT_URL, MQTT_USER, MQTT_PASS);
+        mqtt_task(
+            &adafruit_io_data,
+            private_data::AIO_MQTT_URL,
+            private_data::AIO_MQTT_USER,
+            private_data::AIO_MQTT_PASS,
+        );
     })
     .unwrap();
 
@@ -286,12 +289,16 @@ fn mqtt_task(
 
         let payload = format!("{}", data.bsec.compensated_temp.signal);
 
-        // FIXME: THis is not working
         client
-            .publish(MQTT_TEMP_TOPIC, QoS::AtMostOnce, false, payload.as_bytes())
+            .publish(
+                private_data::AIO_TEMP_TOPIC,
+                QoS::AtMostOnce,
+                false,
+                payload.as_bytes(),
+            )
             .unwrap();
 
-        FreeRtos::delay_ms(6000);
+        FreeRtos::delay_ms(20000);
     }
 }
 
