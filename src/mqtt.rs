@@ -15,6 +15,13 @@ use crate::private_data;
 /// * `username`: MQTT Broker Username
 /// * `password`: MQTT Broker Password
 /// * `sleep_time`: The time to sleep between each publish.
+///
+/// # Panics
+/// Will panic in any of the following conditions
+/// * Creating the MQTT Client failed
+/// * Spawing the event thread failed.
+/// * Publishing the data failed.
+#[allow(clippy::module_name_repetitions)]
 pub fn mqtt_task(
     data_mutex: &Arc<Mutex<SensorHubData>>,
     broker_url: &str,
@@ -126,6 +133,8 @@ pub fn mqtt_task(
 /// * `metadata`: If true, publish a JSON that also includes the metadata.
 ///      If false, just publish the main data.
 ///
+/// # Panics
+/// Will panic if publishing the data failed.
 fn publish_bsec_data(
     client: &mut EspMqttClient,
     topic: &str,

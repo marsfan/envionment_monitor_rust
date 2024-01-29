@@ -4,7 +4,7 @@ use crate::bsec::StructuredOutputs;
 use crate::veml7700::VemlOutput;
 
 /// Structure used to hold data collected by the sensor hub.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct SensorHubData {
     /// Data from the BME688 sensor
     pub bsec: StructuredOutputs,
@@ -15,6 +15,7 @@ pub struct SensorHubData {
 
 impl SensorHubData {
     /// Create a new instance of the structure
+    #[must_use]
     pub fn new() -> Self {
         Self {
             bsec: StructuredOutputs::new(),
