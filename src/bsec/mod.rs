@@ -5,6 +5,8 @@ mod bsec_bindings;
 
 use std::num::TryFromIntError;
 
+// TODO: Periodically save config/state using bsec_get_configuration and bsec_get_state
+
 // Allow here because this woiud
 use self::bsec_bindings::{
     bsec_bme_settings_t, bsec_do_steps, bsec_get_version, bsec_init, bsec_input_t,
@@ -420,6 +422,7 @@ impl<I2C: I2c> Bsec<I2C> {
     /// # Errors
     /// Returns an error if initializing the library failed.
     // TODO: Make this part of new()?
+    // TODO: Load in config and saved state from flash and set using bsec_set_state and bsec_set_configuration
     pub fn init(&mut self) -> Result<(), BsecError> {
         self.bme.init()?;
         to_err(unsafe { bsec_init() })?;

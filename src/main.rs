@@ -13,6 +13,7 @@ use std::io;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
+use cstr::cstr;
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec;
 use environment_monitor_rust::private_data;
@@ -42,6 +43,33 @@ fn main() {
     // It is necessary to call this function once. Otherwise some patches to the runtime
     // implemented by esp-idf-sys might not link properly. See https://github.com/esp-rs/esp-idf-template/issues/71
     esp_idf_svc::sys::link_patches();
+
+    // Init of LittleFS
+    // See https://github.com/esp-rs/esp-idf-sys/pull/114#issuecomment-1207168854
+    // TODO: Can we get rid of using cstr?
+    let mut fs_conf = esp_idf_sys::esp_vfs_littlefs_conf_t {
+        base_path: cstr!("/littlefs").as_ptr(),
+        partition_label: cstr!("littlefs").as_ptr(),
+        ..Default::default()
+    };
+    fs_conf.set_format_if_mount_failed(u8::from(true));
+    fs_conf.set_dont_mount(u8::from(false));
+
+    unsafe { esp_idf_sys::esp!(esp_idf_sys::esp_vfs_littlefs_register(&fs_conf)).unwrap() };
+    let (mut fs_total_bytes, mut fs_used_bytes) = (0, 0);
+    unsafe {
+        esp_idf_sys::esp!(esp_idf_sys::esp_littlefs_info(
+            fs_conf.partition_label,
+            &mut fs_total_bytes,
+            &mut fs_used_bytes
+        ))
+        .unwrap();
+    };
+    log::info!(
+        "LittleFs Info: total bytes = {}, used bytes = {}.",
+        fs_total_bytes,
+        fs_used_bytes
+    );
 
     let peripherals = Peripherals::take().unwrap();
 
