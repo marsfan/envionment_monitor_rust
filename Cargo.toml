@@ -18,14 +18,13 @@ opt-level = "s"
 debug = true    # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
 
-
 [[package.metadata.esp-idf-sys.extra_components]]
 remote_component = { name = "joltwallet/littlefs", version = "1.12.1" }
 bindings_header = "src/component_bindings.h"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-esp-idf-svc = { version = "0.*", default-features = false }
+esp-idf-svc = { version = "0.*" }
 esp-idf-hal = "0.*"
 thiserror = "1.0.56"
 esp-idf-sys = "0.*"
