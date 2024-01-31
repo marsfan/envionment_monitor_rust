@@ -18,19 +18,10 @@ opt-level = "s"
 debug = true    # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
 
-[features]
-default = ["std", "embassy", "esp-idf-svc/native"]
 
-pio = ["esp-idf-svc/pio"]
-std = ["alloc", "esp-idf-svc/binstart", "esp-idf-svc/std"]
-alloc = ["esp-idf-svc/alloc"]
-nightly = ["esp-idf-svc/nightly"]
-experimental = ["esp-idf-svc/experimental"]
-embassy = [
-    "esp-idf-svc/embassy-sync",
-    "esp-idf-svc/critical-section",
-    "esp-idf-svc/embassy-time-driver",
-]
+[[package.metadata.esp-idf-sys.extra_components]]
+remote_component = { name = "joltwallet/littlefs", version = "1.12.1" }
+bindings_header = "src/component_bindings.h"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
@@ -38,9 +29,9 @@ esp-idf-svc = { version = "0.*", default-features = false }
 esp-idf-hal = "0.*"
 thiserror = "1.0.56"
 esp-idf-sys = "0.*"
-# FIXME: Bump these to 1.0.0 once esp-idf-hal supports it
 embedded-hal = "1.0.0"
 embedded-hal-bus = { version = "0.1.0", features = ["std"] }
+cstr = "0.2.11"
 
 [build-dependencies]
 bindgen = "0.69.2"
