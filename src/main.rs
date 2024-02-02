@@ -140,7 +140,7 @@ fn main() {
     })
     .unwrap();
 
-    spawn_thread(b"BSEC Thread\0", 4096, 1, None, move || {
+    spawn_thread(b"BSEC Thread\0", 8192, 1, None, move || {
         bsec_task(&bsec_i2c, &bsec_transmitter);
     })
     .unwrap();
