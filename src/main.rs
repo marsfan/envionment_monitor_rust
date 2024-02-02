@@ -7,6 +7,7 @@ use esp_idf_hal::cpu::Core;
 use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
 use esp_idf_svc::nvs::EspDefaultNvsPartition;
+use esp_idf_svc::sntp;
 use esp_idf_svc::timer::EspTimerService;
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
 use std::io;
@@ -43,6 +44,9 @@ fn main() {
     // It is necessary to call this function once. Otherwise some patches to the runtime
     // implemented by esp-idf-sys might not link properly. See https://github.com/esp-rs/esp-idf-template/issues/71
     esp_idf_svc::sys::link_patches();
+
+    // Bind the log crate to the ESP Logging facilities
+    esp_idf_svc::log::EspLogger::initialize_default();
 
     // Init of LittleFS
     // See https://github.com/esp-rs/esp-idf-sys/pull/114#issuecomment-1207168854
@@ -101,8 +105,11 @@ fn main() {
     wifi.connect().unwrap();
     wifi.wait_netif_up().unwrap();
 
-    // Bind the log crate to the ESP Logging facilities
-    esp_idf_svc::log::EspLogger::initialize_default();
+    // Initialize the SNTP system for getting time over network
+    // TODO: Figure out how to wait untill we have network time?
+    // Keep it around or else the SNTP service will stop
+    // TODO: Set system time to RTC
+    let _ntp = sntp::EspSntp::new_default().unwrap();
 
     // TODO: Was suggested also trying this.(declaring a `&'static Mutex`).
     // Seems I'm supposed to use lazy_static somehow.
@@ -182,6 +189,7 @@ fn main() {
             sensor_hub_data.veml.lux,
         );
         log::info!("----------------------------------------");
+        log::info!("Current time: {:?}", std::time::SystemTime::now());
 
         FreeRtos::delay_ms(2000);
     }
