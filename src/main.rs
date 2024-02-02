@@ -223,6 +223,9 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
         let remaining_time =
             bsec.get_next_call_time_us() - i64::try_from(timer_service.now().as_micros()).unwrap();
 
+        // TODO: Periodically save the state to flash (30 minutes would be 17520 in a year)
+        // TODO: in the future, maybe use MQTT to send and get the state from a remove server?
+
         let remaining_time_32 = u32::try_from(remaining_time);
         if let Ok(remaining_time_32) = remaining_time_32 {
             FreeRtos::delay_ms(remaining_time_32 / 1000);

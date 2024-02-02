@@ -3,16 +3,18 @@
 #[allow(clippy::module_name_repetitions)]
 mod bsec_bindings;
 
+use std::fs;
 use std::num::TryFromIntError;
+use std::path::PathBuf;
 
 // TODO: Periodically save config/state using bsec_get_configuration and bsec_get_state
 
-// Allow here because this woiud
 use self::bsec_bindings::{
-    bsec_bme_settings_t, bsec_do_steps, bsec_get_version, bsec_init, bsec_input_t,
+    bsec_bme_settings_t, bsec_do_steps, bsec_get_state, bsec_get_version, bsec_init, bsec_input_t,
     bsec_library_return_t, bsec_output_t, bsec_sensor_configuration_t, bsec_sensor_control,
-    bsec_update_subscription, bsec_version_t, BSEC_E_CONFIG_CRCMISMATCH, BSEC_E_CONFIG_EMPTY,
-    BSEC_E_CONFIG_FAIL, BSEC_E_CONFIG_FEATUREMISMATCH, BSEC_E_CONFIG_INSUFFICIENTBUFFER,
+    bsec_set_configuration, bsec_set_state, bsec_update_subscription, bsec_version_t,
+    BSEC_E_CONFIG_CRCMISMATCH, BSEC_E_CONFIG_EMPTY, BSEC_E_CONFIG_FAIL,
+    BSEC_E_CONFIG_FEATUREMISMATCH, BSEC_E_CONFIG_INSUFFICIENTBUFFER,
     BSEC_E_CONFIG_INSUFFICIENTWORKBUFFER, BSEC_E_CONFIG_INVALIDSTRINGSIZE,
     BSEC_E_CONFIG_VERSIONMISMATCH, BSEC_E_DOSTEPS_DUPLICATEINPUT, BSEC_E_DOSTEPS_INVALIDINPUT,
     BSEC_E_DOSTEPS_VALUELIMITS, BSEC_E_PARSE_SECTIONEXCEEDSWORKBUFFER,
@@ -22,19 +24,19 @@ use self::bsec_bindings::{
     BSEC_E_SU_WRONGDATARATE, BSEC_INPUT_GASRESISTOR, BSEC_INPUT_HEATSOURCE, BSEC_INPUT_HUMIDITY,
     BSEC_INPUT_PRESSURE, BSEC_INPUT_PROFILE_PART, BSEC_INPUT_TEMPERATURE,
     BSEC_I_DOSTEPS_NOOUTPUTSRETURNABLE, BSEC_I_SU_GASESTIMATEPRECEDENCE,
-    BSEC_I_SU_SUBSCRIBEDOUTPUTGATES, BSEC_MAX_PHYSICAL_SENSOR, BSEC_NUMBER_OUTPUTS, BSEC_OK,
-    BSEC_OUTPUT_BREATH_VOC_EQUIVALENT, BSEC_OUTPUT_CO2_EQUIVALENT, BSEC_OUTPUT_GAS_ESTIMATE_1,
-    BSEC_OUTPUT_GAS_ESTIMATE_2, BSEC_OUTPUT_GAS_ESTIMATE_3, BSEC_OUTPUT_GAS_ESTIMATE_4,
-    BSEC_OUTPUT_GAS_PERCENTAGE, BSEC_OUTPUT_IAQ, BSEC_OUTPUT_RAW_GAS, BSEC_OUTPUT_RAW_GAS_INDEX,
-    BSEC_OUTPUT_RAW_HUMIDITY, BSEC_OUTPUT_RAW_PRESSURE, BSEC_OUTPUT_RAW_TEMPERATURE,
-    BSEC_OUTPUT_RUN_IN_STATUS, BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY,
-    BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE, BSEC_OUTPUT_STABILIZATION_STATUS,
-    BSEC_OUTPUT_STATIC_IAQ, BSEC_SAMPLE_RATE_CONT, BSEC_SAMPLE_RATE_DISABLED, BSEC_SAMPLE_RATE_LP,
-    BSEC_SAMPLE_RATE_SCAN, BSEC_SAMPLE_RATE_ULP, BSEC_SAMPLE_RATE_ULP_MEASUREMENT_ON_DEMAND,
-    BSEC_W_DOSTEPS_EXCESSOUTPUTS, BSEC_W_DOSTEPS_GASINDEXMISS,
-    BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE, BSEC_W_SC_CALL_TIMING_VIOLATION,
-    BSEC_W_SC_MODEXCEEDULPTIMELIMIT, BSEC_W_SC_MODINSUFFICIENTWAITTIME, BSEC_W_SU_MODINNOULP,
-    BSEC_W_SU_UNKNOWNOUTPUTGATE,
+    BSEC_I_SU_SUBSCRIBEDOUTPUTGATES, BSEC_MAX_PHYSICAL_SENSOR, BSEC_MAX_STATE_BLOB_SIZE,
+    BSEC_MAX_WORKBUFFER_SIZE, BSEC_NUMBER_OUTPUTS, BSEC_OK, BSEC_OUTPUT_BREATH_VOC_EQUIVALENT,
+    BSEC_OUTPUT_CO2_EQUIVALENT, BSEC_OUTPUT_GAS_ESTIMATE_1, BSEC_OUTPUT_GAS_ESTIMATE_2,
+    BSEC_OUTPUT_GAS_ESTIMATE_3, BSEC_OUTPUT_GAS_ESTIMATE_4, BSEC_OUTPUT_GAS_PERCENTAGE,
+    BSEC_OUTPUT_IAQ, BSEC_OUTPUT_RAW_GAS, BSEC_OUTPUT_RAW_GAS_INDEX, BSEC_OUTPUT_RAW_HUMIDITY,
+    BSEC_OUTPUT_RAW_PRESSURE, BSEC_OUTPUT_RAW_TEMPERATURE, BSEC_OUTPUT_RUN_IN_STATUS,
+    BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_HUMIDITY, BSEC_OUTPUT_SENSOR_HEAT_COMPENSATED_TEMPERATURE,
+    BSEC_OUTPUT_STABILIZATION_STATUS, BSEC_OUTPUT_STATIC_IAQ, BSEC_SAMPLE_RATE_CONT,
+    BSEC_SAMPLE_RATE_DISABLED, BSEC_SAMPLE_RATE_LP, BSEC_SAMPLE_RATE_SCAN, BSEC_SAMPLE_RATE_ULP,
+    BSEC_SAMPLE_RATE_ULP_MEASUREMENT_ON_DEMAND, BSEC_W_DOSTEPS_EXCESSOUTPUTS,
+    BSEC_W_DOSTEPS_GASINDEXMISS, BSEC_W_DOSTEPS_TSINTRADIFFOUTOFRANGE,
+    BSEC_W_SC_CALL_TIMING_VIOLATION, BSEC_W_SC_MODEXCEEDULPTIMELIMIT,
+    BSEC_W_SC_MODINSUFFICIENTWAITTIME, BSEC_W_SU_MODINNOULP, BSEC_W_SU_UNKNOWNOUTPUTGATE,
 };
 
 use embedded_hal::i2c::I2c;
@@ -199,6 +201,12 @@ pub enum BsecError {
         error: BME68xError,
     },
 
+    /// Error reading/writing state/configuration to flash
+    FileIOError {
+        /// Source error kind
+        kind: std::io::ErrorKind,
+    },
+
     /// Error converting between numeric typoes
     NumericConversionErrror,
 
@@ -261,6 +269,12 @@ impl From<BME68xError> for BsecError {
 impl From<TryFromIntError> for BsecError {
     fn from(_value: TryFromIntError) -> Self {
         Self::NumericConversionErrror
+    }
+}
+
+impl From<std::io::Error> for BsecError {
+    fn from(value: std::io::Error) -> Self {
+        Self::FileIOError { kind: value.kind() }
     }
 }
 
@@ -392,6 +406,12 @@ pub struct Bsec<I2C> {
 
     /// Current periodic_processing iteration time (in ns)
     curr_time_ns: i64,
+
+    /// Path to the file that stores the state of the BSEC library
+    state_path: PathBuf,
+
+    /// Path to the file that stores the configuration of the BSEC library
+    config_path: PathBuf,
 }
 
 // TODO: Rust enum for bsec_virtual_sensor_t
@@ -414,6 +434,8 @@ impl<I2C: I2c> Bsec<I2C> {
             temp_offset,
             sensor_settings: bsec_bme_settings_t::new(),
             curr_time_ns: 0,
+            state_path: PathBuf::from("/littlefs/bsec_state.bin"),
+            config_path: PathBuf::from("/littlefs/bsec_config.bin"),
         }
     }
 
@@ -426,6 +448,74 @@ impl<I2C: I2c> Bsec<I2C> {
     pub fn init(&mut self) -> Result<(), BsecError> {
         self.bme.init()?;
         to_err(unsafe { bsec_init() })?;
+
+        // Load the config, if present
+        // TODO: Break into separate function
+        if self.config_path.exists() {
+            let config = fs::read(&self.config_path)?;
+            let mut work_buffer = [0; BSEC_MAX_WORKBUFFER_SIZE as usize];
+            let config_len = u32::try_from(config.len())?;
+            let work_buffer_len = u32::try_from(work_buffer.len())?;
+
+            to_err(unsafe {
+                bsec_set_configuration(
+                    config.as_ptr(),
+                    config_len,
+                    work_buffer.as_mut_ptr(),
+                    work_buffer_len,
+                )
+            })?;
+        }
+
+        // Load the state, if present
+        // TODO: Break into separate function
+        if self.state_path.exists() {
+            let state = fs::read(&self.state_path)?;
+            let mut work_buffer = [0; BSEC_MAX_WORKBUFFER_SIZE as usize];
+            let state_len = u32::try_from(state.len())?;
+            let work_buffer_len = u32::try_from(work_buffer.len())?;
+
+            to_err(unsafe {
+                bsec_set_state(
+                    state.as_ptr(),
+                    state_len,
+                    work_buffer.as_mut_ptr(),
+                    work_buffer_len,
+                )
+            })?;
+        }
+
+        Ok(())
+    }
+
+    #[allow(clippy::doc_markdown)]
+    /// Save the BSEC library state to the LittleFS Partition
+    ///
+    /// # Errors
+    /// Returns an error if getting the state from the BSEC library failed,
+    /// or if writing the state to the filesystem failed.
+    // TODO: Argument for path to save?
+    pub fn save_state(&mut self) -> Result<(), BsecError> {
+        // Get the configuration from the library.
+        let mut state_buffer = [0; BSEC_MAX_STATE_BLOB_SIZE as usize];
+        let mut work_buffer = [0; BSEC_MAX_WORKBUFFER_SIZE as usize];
+        let mut actual_buffer_size = 0;
+        to_err(unsafe {
+            bsec_get_state(
+                0,
+                state_buffer.as_mut_ptr(),
+                BSEC_MAX_STATE_BLOB_SIZE,
+                work_buffer.as_mut_ptr(),
+                BSEC_MAX_WORKBUFFER_SIZE,
+                &mut actual_buffer_size,
+            )
+        })?;
+
+        // Only get the required number of bytes.
+        let state_buffer: Vec<u8> = state_buffer.into_iter().take(5).collect();
+        // Store the configuration to the filesystem
+        fs::write(&self.state_path, state_buffer)?;
+
         Ok(())
     }
 
