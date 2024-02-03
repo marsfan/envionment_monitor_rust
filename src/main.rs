@@ -10,11 +10,12 @@ use esp_idf_svc::nvs::EspDefaultNvsPartition;
 use esp_idf_svc::sntp;
 use esp_idf_svc::timer::EspTimerService;
 use esp_idf_svc::wifi::{BlockingWifi, ClientConfiguration, Configuration, EspWifi};
+use esp_idf_sys::EspError;
+use std::ffi::CString;
 use std::io;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 
-use cstr::cstr;
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec;
 use environment_monitor_rust::private_data;
@@ -48,27 +49,7 @@ fn main() {
     // Bind the log crate to the ESP Logging facilities
     esp_idf_svc::log::EspLogger::initialize_default();
 
-    // Init of LittleFS
-    // See https://github.com/esp-rs/esp-idf-sys/pull/114#issuecomment-1207168854
-    // TODO: Can we get rid of using cstr?
-    let mut fs_conf = esp_idf_sys::esp_vfs_littlefs_conf_t {
-        base_path: cstr!("/littlefs").as_ptr(),
-        partition_label: cstr!("littlefs").as_ptr(),
-        ..Default::default()
-    };
-    fs_conf.set_format_if_mount_failed(u8::from(true));
-    fs_conf.set_dont_mount(u8::from(false));
-
-    unsafe { esp_idf_sys::esp!(esp_idf_sys::esp_vfs_littlefs_register(&fs_conf)).unwrap() };
-    let (mut fs_total_bytes, mut fs_used_bytes) = (0, 0);
-    unsafe {
-        esp_idf_sys::esp!(esp_idf_sys::esp_littlefs_info(
-            fs_conf.partition_label,
-            &mut fs_total_bytes,
-            &mut fs_used_bytes
-        ))
-        .unwrap();
-    };
+    let (fs_total_bytes, fs_used_bytes) = mount_littlefs("littlefs", "/littlefs").unwrap();
     log::info!(
         "LittleFs Info: total bytes = {}, used bytes = {}.",
         fs_total_bytes,
@@ -193,6 +174,44 @@ fn main() {
 
         FreeRtos::delay_ms(2000);
     }
+}
+
+#[allow(clippy::doc_markdown)]
+/// Initialize the LittleFS Subsystem.
+///
+/// # Arguments
+/// * `partition_label`: The label of the partition to mount
+/// * `mount_point`: The path to mount the filesystem to
+///
+/// # Returns
+/// Tuple of (filesystem size, filesystem used bytes)
+///
+/// # Errors
+/// Returns an error if mounting the filesystem fails.
+fn mount_littlefs(partition_label: &str, mount_point: &str) -> Result<(usize, usize), EspError> {
+    // See https://github.com/esp-rs/esp-idf-sys/pull/114#issuecomment-1207168854
+    let base_path = CString::new(mount_point).unwrap();
+    let partition_label = CString::new(partition_label).unwrap();
+
+    let mut fs_conf = esp_idf_sys::esp_vfs_littlefs_conf_t {
+        base_path: base_path.as_c_str().as_ptr(),
+        partition_label: partition_label.as_c_str().as_ptr(),
+        ..Default::default()
+    };
+    fs_conf.set_format_if_mount_failed(u8::from(true));
+    fs_conf.set_dont_mount(u8::from(false));
+
+    unsafe { esp_idf_sys::esp!(esp_idf_sys::esp_vfs_littlefs_register(&fs_conf))? };
+    let (mut fs_total_bytes, mut fs_used_bytes) = (0, 0);
+    unsafe {
+        esp_idf_sys::esp!(esp_idf_sys::esp_littlefs_info(
+            fs_conf.partition_label,
+            &mut fs_total_bytes,
+            &mut fs_used_bytes
+        ))?;
+    };
+
+    Ok((fs_total_bytes, fs_used_bytes))
 }
 
 /// Task for processing data from the BME688 with BSEC
