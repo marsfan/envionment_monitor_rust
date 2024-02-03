@@ -7,8 +7,6 @@ use std::fs;
 use std::num::TryFromIntError;
 use std::path::PathBuf;
 
-// TODO: Periodically save config/state using bsec_get_configuration and bsec_get_state
-
 use self::bsec_bindings::{
     bsec_bme_settings_t, bsec_do_steps, bsec_get_state, bsec_get_version, bsec_init, bsec_input_t,
     bsec_library_return_t, bsec_output_t, bsec_sensor_configuration_t, bsec_sensor_control,
@@ -444,7 +442,6 @@ impl<I2C: I2c> Bsec<I2C> {
     /// # Errors
     /// Returns an error if initializing the library failed.
     // TODO: Make this part of new()?
-    // TODO: Load in config and saved state from flash and set using bsec_set_state and bsec_set_configuration
     pub fn init(&mut self) -> Result<(), BsecError> {
         self.bme.init()?;
         to_err(unsafe { bsec_init() })?;
@@ -672,25 +669,26 @@ impl<I2C: I2c> Bsec<I2C> {
         }?;
 
         if (self.sensor_settings.trigger_measurement != 0)
+            // TODO: Add method to sensor settings that returns enum mode?
             && !matches!(
                 BME68xOpMode::from(self.sensor_settings.op_mode),
                 BME68xOpMode::SleepMode,
             )
         {
-            // FIXME: Replace with match
             let result = self
                 .bme
                 .get_data(BME68xOpMode::from(self.sensor_settings.op_mode));
-            if result.is_err() && matches!(result.unwrap_err(), BME68xError::NoNewData) {
-            } else if result.is_err() {
-                result?;
-            } else {
-                let (data, n_data) = result?;
-                if n_data > 0 {
-                    for entry in data.iter().take(n_data as usize) {
-                        self.process_data(entry)?;
+
+            match result {
+                Ok((data, n_data)) => {
+                    if n_data > 0 {
+                        for entry in data.iter().take(n_data as usize) {
+                            self.process_data(entry)?;
+                        }
                     }
                 }
+                Err(BME68xError::NoNewData) => {} // Do nothing as this is an OK situation for BSEC
+                Err(error_code) => Err(error_code)?,
             }
         }
 
