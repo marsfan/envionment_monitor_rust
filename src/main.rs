@@ -15,6 +15,7 @@ use std::ffi::CString;
 use std::io;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
+use std::time::SystemTime;
 
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec;
@@ -128,7 +129,8 @@ fn main() {
     })
     .unwrap();
 
-    spawn_thread(b"BSEC Thread\0", 8192, 1, None, move || {
+    // FIXME: This seems very large. Should try to make it smaller
+    spawn_thread(b"BSEC Thread\0", 16384, 1, None, move || {
         bsec_task(&bsec_i2c, &bsec_transmitter);
     })
     .unwrap();
@@ -220,9 +222,12 @@ fn mount_littlefs(partition_label: &str, mount_point: &str) -> Result<(usize, us
 /// * `i2c_handle`: Handle to a Mutex-protected I2C driver used to
 ///     communicate with the sensor.
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread
+// TODO: Change to use SystemTime::now for the timestamp.
+// Requires waiting until the NTP system is up and running.
 fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
     let i2c_driver = MutexDevice::new(i2c_handle);
     let mut bsec = bsec::Bsec::new(i2c_driver, 0.0);
+    let mut last_thread_time = SystemTime::now();
 
     log::info!("Starting BSEC");
     bsec.init().unwrap();
@@ -250,8 +255,15 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
         let remaining_time =
             bsec.get_next_call_time_us() - i64::try_from(timer_service.now().as_micros()).unwrap();
 
-        // TODO: Periodically save the state to flash (30 minutes would be 17520 in a year)
-        // TODO: in the future, maybe use MQTT to send and get the state from a remove server?
+        // TODO: in the future, maybe use MQTT to send and get the state from a remove server so we don't wear down flash?
+
+        // Save the configuration state once per hour, (so 8760 times a year)
+        let elapsed = last_thread_time.elapsed().unwrap();
+        if elapsed.as_secs() > 3600 {
+            log::info!("Saving State.");
+            bsec.save_state().unwrap();
+            last_thread_time = SystemTime::now();
+        }
 
         let remaining_time_32 = u32::try_from(remaining_time);
         if let Ok(remaining_time_32) = remaining_time_32 {

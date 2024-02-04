@@ -448,6 +448,7 @@ impl<I2C: I2c> Bsec<I2C> {
 
         // Load the config, if present
         // TODO: Break into separate function
+        // TODO: Logic to overwrite config if it is bad
         if self.config_path.exists() {
             let config = fs::read(&self.config_path)?;
             let mut work_buffer = [0; BSEC_MAX_WORKBUFFER_SIZE as usize];
@@ -466,6 +467,7 @@ impl<I2C: I2c> Bsec<I2C> {
 
         // Load the state, if present
         // TODO: Break into separate function
+        // TODO: Logic to overwrite state if it is bad
         if self.state_path.exists() {
             let state = fs::read(&self.state_path)?;
             let mut work_buffer = [0; BSEC_MAX_WORKBUFFER_SIZE as usize];
@@ -509,7 +511,10 @@ impl<I2C: I2c> Bsec<I2C> {
         })?;
 
         // Only get the required number of bytes.
-        let state_buffer: Vec<u8> = state_buffer.into_iter().take(5).collect();
+        let state_buffer: Vec<u8> = state_buffer
+            .into_iter()
+            .take(usize::try_from(actual_buffer_size)?)
+            .collect();
         // Store the configuration to the filesystem
         fs::write(&self.state_path, state_buffer)?;
 
