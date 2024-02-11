@@ -1,5 +1,5 @@
 /.embuild
 /target
-src/bsec/inc
-src/bsec/bin
-src/private_data.rs
+environment-monitor/src/bsec/inc
+environment-monitor/src/bsec/bin
+environment-monitor/src/private_data.rs

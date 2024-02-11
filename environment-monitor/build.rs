@@ -8,7 +8,7 @@ fn main() {
 
     // Linking for the BSEC library
     // FIXME: Use path module to use local path so it is not limited to my computer
-    println!("cargo:rustc-link-search=/home/gabe/esp32_projects/environment-monitor-rust/src/bsec/bin/esp/esp32");
+    println!("cargo:rustc-link-search=/home/gabe/esp32_projects/environment-monitor-rust/environment-monitor/src/bsec/bin/esp/esp32");
     println!("cargo:rustc-link-lib=static=algobsec");
 
     // Use bindgen to generate the bindings for BSEC library.
