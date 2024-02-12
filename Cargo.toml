@@ -8,7 +8,3 @@ opt-level = "s"
 [profile.dev]
 debug = true    # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
-
-[[workspace.metadata.esp-idf-sys.extra_components]]
-remote_component = { name = "joltwallet/littlefs", version = "1.12.1" }
-bindings_header = "envionment-monitor/src/component_bindings.h"

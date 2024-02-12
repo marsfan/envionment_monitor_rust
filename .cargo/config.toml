@@ -18,3 +18,4 @@ MCU = "esp32"
 # Note: this variable is not used by the pio builder (`cargo build --features pio`)
 ESPFLASH_BAUD = "512000"
 ESP_IDF_VERSION = "v5.1.2"
+ESP_IDF_SYS_ROOT_CRATE = "environment-monitor-rust"
