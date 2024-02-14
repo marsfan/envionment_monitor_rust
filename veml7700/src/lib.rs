@@ -77,13 +77,16 @@ impl TryFrom<u16> for VemlGain {
     ///
     /// # Returns
     /// Result of trying to create the enum.
+    ///
+    /// # Panics
+    /// Will panic if attempting to convert an unsupported value to the enum
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
             0b00 => Ok(VemlGain::Gain1),
             0b01 => Ok(VemlGain::Gain2),
             0b10 => Ok(VemlGain::Gain1_8),
             0b11 => Ok(VemlGain::Gain1_4),
-            _ => Err(AppError::EnumConversionError),
+            _ => panic!("Can not convert {value} into VemlGain"),
         }
     }
 }
