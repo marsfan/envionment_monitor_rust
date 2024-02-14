@@ -2,8 +2,6 @@
 mod errors;
 use embedded_hal::i2c::I2c;
 
-use esp_idf_hal::sys::TickType_t;
-
 use crate::errors::AppError;
 
 /// I2C Address of the sensor
@@ -258,9 +256,6 @@ pub struct Veml7700<I2C> {
     /// Sensor configuration
     configuration: VemlConfigReg,
 
-    /// Time to wait for I2C operation to complete
-    _wait_time: TickType_t,
-
     /// Values from the most recent sensor measurement.
     last_output: VemlOutput,
 }
@@ -269,7 +264,7 @@ pub struct Veml7700<I2C> {
 
 impl<I2C: I2c> Veml7700<I2C> {
     /// Create a new instance of the VEML7700 driver.
-    pub fn new(i2c: I2C, wait_time: TickType_t) -> Self {
+    pub fn new(i2c: I2C) -> Self {
         Self {
             i2c,
             configuration: VemlConfigReg {
@@ -284,7 +279,6 @@ impl<I2C: I2c> Veml7700<I2C> {
                 raw_white: 0,
                 lux: 0.0,
             },
-            _wait_time: wait_time,
         }
     }
 

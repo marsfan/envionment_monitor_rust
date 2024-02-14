@@ -283,7 +283,7 @@ fn bsec_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSen
 /// * `transmitter`: The transmitter that will be used to send data to the sensor hub thread.
 fn veml_task(i2c_handle: &Arc<Mutex<I2cDriver<'_>>>, transmitter: &mpsc::SyncSender<SensorData>) {
     let i2c_driver = MutexDevice::new(i2c_handle);
-    let mut veml = Veml7700::new(i2c_driver, 1000);
+    let mut veml = Veml7700::new(i2c_driver);
     veml.set_power_state(false).unwrap();
 
     loop {
