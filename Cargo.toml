@@ -8,29 +8,3 @@ opt-level = "s"
 [profile.dev]
 debug = true    # Symbols are nice and they don't increase the size on Flash
 opt-level = "z"
-
-
-[lints.rust]
-missing_docs = "warn"
-deprecated-in-future = "warn"
-
-[lints.clippy]
-all = "warn"
-correctness = "warn"
-suspicious = "warn"
-complexity = "warn"
-perf = "warn"
-pedantic = "warn"
-cargo = "warn"
-
-# Individual rules instead of groups
-missing_docs_in_private_items = "warn"
-cargo_common_metadata = "warn"
-unwrap_in_result = "warn"
-match_bool = "warn"
-uninlined_format_args = "warn"
-needless_pass_by_value = "warn"
-explicit_iter_loop = "warn"
-if_not_else = "allow"
-unreadable_literal = "allow"
-inline_always = "allow"
