@@ -1,8 +1,5 @@
 //! Logic for accessing a VEML7700 sensor attached over I2C
-mod errors;
 use embedded_hal::i2c::I2c;
-
-use crate::errors::AppError;
 
 /// I2C Address of the sensor
 const VEML_ADDR: u8 = 0x10;
@@ -68,8 +65,7 @@ pub enum VemlGain {
     /// 1/4 Gain
     Gain1_4 = 0x04,
 }
-impl TryFrom<u16> for VemlGain {
-    type Error = AppError;
+impl From<u16> for VemlGain {
     /// Try to create enum from integer
     ///
     /// # Arguments
@@ -80,12 +76,12 @@ impl TryFrom<u16> for VemlGain {
     ///
     /// # Panics
     /// Will panic if attempting to convert an unsupported value to the enum
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
+    fn from(value: u16) -> Self {
         match value {
-            0b00 => Ok(VemlGain::Gain1),
-            0b01 => Ok(VemlGain::Gain2),
-            0b10 => Ok(VemlGain::Gain1_8),
-            0b11 => Ok(VemlGain::Gain1_4),
+            0b00 => VemlGain::Gain1,
+            0b01 => VemlGain::Gain2,
+            0b10 => VemlGain::Gain1_8,
+            0b11 => VemlGain::Gain1_4,
             _ => panic!("Can not convert {value} into VemlGain"),
         }
     }
@@ -114,8 +110,7 @@ pub enum VemlIntegration {
     Int800 = 0b0011,
 }
 
-impl TryFrom<u16> for VemlIntegration {
-    type Error = AppError;
+impl From<u16> for VemlIntegration {
     /// Try to create enum from integer
     ///
     /// # Arguments
@@ -123,15 +118,18 @@ impl TryFrom<u16> for VemlIntegration {
     ///
     /// # Returns
     /// Result of trying to create the enum.
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
+    ///
+    /// # Panics
+    /// Will panic if attempting to convert an unsupported value to the enum
+    fn from(value: u16) -> Self {
         match value {
-            0b1100 => Ok(VemlIntegration::Int25),
-            0b1000 => Ok(VemlIntegration::Int50),
-            0b0000 => Ok(VemlIntegration::Int100),
-            0b0001 => Ok(VemlIntegration::Int200),
-            0b0010 => Ok(VemlIntegration::Int400),
-            0b0011 => Ok(VemlIntegration::Int800),
-            _ => Err(AppError::EnumConversionError),
+            0b1100 => VemlIntegration::Int25,
+            0b1000 => VemlIntegration::Int50,
+            0b0000 => VemlIntegration::Int100,
+            0b0001 => VemlIntegration::Int200,
+            0b0010 => VemlIntegration::Int400,
+            0b0011 => VemlIntegration::Int800,
+            _ => panic!("Can not convert {value} into VemlIntegration"),
         }
     }
 }
@@ -153,8 +151,7 @@ pub enum VemlPersistence {
     Persist8 = 0x04,
 }
 
-impl TryFrom<u16> for VemlPersistence {
-    type Error = AppError;
+impl From<u16> for VemlPersistence {
     /// Try to create enum from integer
     ///
     /// # Arguments
@@ -162,13 +159,13 @@ impl TryFrom<u16> for VemlPersistence {
     ///
     /// # Returns
     /// Result of trying to create the enum.
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
+    fn from(value: u16) -> Self {
         match value {
-            0b00 => Ok(VemlPersistence::Persist1),
-            0b01 => Ok(VemlPersistence::Persist2),
-            0b10 => Ok(VemlPersistence::Persist4),
-            0b11 => Ok(VemlPersistence::Persist8),
-            _ => Err(AppError::EnumConversionError),
+            0b00 => VemlPersistence::Persist1,
+            0b01 => VemlPersistence::Persist2,
+            0b10 => VemlPersistence::Persist4,
+            0b11 => VemlPersistence::Persist8,
+            _ => panic!("Can not convert {value} into VemlPersistence"),
         }
     }
 }
