@@ -7,8 +7,7 @@ description = "Sensor Driver for the VEML7700"
 license = "MPL-2.0"
 keywords = ["sensor", "light", "i2c", "veml7700"]
 repository = "https://github.com/marsfan/envionment_monitor_rust"
-# TODO: Add no-std category once we confirm crate supports it
-categories = ["embedded", "hardware-support"]
+categories = ["embedded", "hardware-support", "no-std"]
 readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

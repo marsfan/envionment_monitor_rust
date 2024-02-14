@@ -1,3 +1,4 @@
+#![no_std]
 //! Logic for accessing a VEML7700 sensor attached over I2C
 use embedded_hal::i2c::I2c;
 
