@@ -8,7 +8,7 @@ license = "MPL-2.0"
 keywords = ["esp32", "environment", "mqtt", "monitor"]
 repository = "https://github.com/marsfan/envionment_monitor_rust"
 categories = ["embedded"]
-
+readme = "README.md"
 
 [[package.metadata.esp-idf-sys.extra_components]]
 remote_component = { name = "joltwallet/littlefs", version = "1.12.1" }
@@ -44,7 +44,8 @@ cargo = "warn"
 
 # Individual rules instead of groups
 missing_docs_in_private_items = "warn"
-cargo_common_metadata = "warn"
+# FIXME: Find out why this falsely reports some errors when enabled
+# cargo_common_metadata = "warn"
 unwrap_in_result = "warn"
 match_bool = "warn"
 uninlined_format_args = "warn"
