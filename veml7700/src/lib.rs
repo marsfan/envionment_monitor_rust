@@ -193,9 +193,9 @@ impl From<u16> for VemlConfigReg {
     fn from(value: u16) -> Self {
         let shutdown = (value & 0x01) != 0;
         let interrupt_enabled = (value & 0x02) != 0;
-        let persistence = VemlPersistence::try_from((value >> 4) & 0b11).unwrap();
-        let integration_time = VemlIntegration::try_from((value >> 6) & 0b1111).unwrap();
-        let gain = VemlGain::try_from((value >> 11) & 0b11).unwrap();
+        let persistence = VemlPersistence::from((value >> 4) & 0b11);
+        let integration_time = VemlIntegration::from((value >> 6) & 0b1111);
+        let gain = VemlGain::from((value >> 11) & 0b11);
 
         Self {
             gain,
@@ -505,9 +505,6 @@ impl<I2C: I2c> Veml7700<I2C> {
     ///
     /// # Errors
     /// Returns an error if getting the power saving mode failed.
-    ///
-    /// # Panics
-    /// Will panic if converting the mode bits into `VemlPowerSavingMode` fails
     pub fn get_power_saving_mode(&mut self) -> Result<VemlPowerSavingMode, I2C::Error> {
         let reg_val = self.write_read_u16(VemlRegister::PowerSaving)?;
         let mode_bits = (reg_val & 0b110) >> 1;
