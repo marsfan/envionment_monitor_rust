@@ -1,5 +1,5 @@
 //! Logic for accessing a VEML7700 sensor attached over I2C
-
+mod errors;
 use embedded_hal::i2c::I2c;
 
 use esp_idf_hal::sys::TickType_t;

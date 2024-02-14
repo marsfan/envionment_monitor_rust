@@ -17,6 +17,7 @@ remote_component = { name = "joltwallet/littlefs", version = "1.12.1" }
 bindings_header = "src/component_bindings.h"
 
 [dependencies]
+veml7700 = { path = "../veml7700" }
 log = { version = "0.4", default-features = false }
 esp-idf-svc = { version = "0.*" }
 esp-idf-hal = "0.*"

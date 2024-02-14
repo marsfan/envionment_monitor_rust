@@ -2,7 +2,6 @@
 
 use environment_monitor_rust::interconnect::SensorHubData;
 use environment_monitor_rust::mqtt::mqtt_task;
-use environment_monitor_rust::veml7700::{Veml7700, VemlOutput};
 use esp_idf_hal::cpu::Core;
 use esp_idf_hal::task::thread::ThreadSpawnConfiguration;
 use esp_idf_svc::eventloop::EspSystemEventLoop;
@@ -16,6 +15,7 @@ use std::io;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::SystemTime;
+use veml7700::{Veml7700, VemlOutput};
 
 use embedded_hal_bus::i2c::MutexDevice;
 use environment_monitor_rust::bsec;

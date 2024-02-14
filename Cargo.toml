@@ -1,5 +1,5 @@
 [workspace]
-members = ["environment-monitor"]
+members = ["environment-monitor", "veml7700"]
 resolver = "2"
 
 [profile.release]

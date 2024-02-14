@@ -1,7 +1,7 @@
 //! Data and types for interconnect between tasks.
 /// Structure for holding data from all of the sensors
 use crate::bsec::StructuredOutputs;
-use crate::veml7700::VemlOutput;
+use veml7700::VemlOutput;
 
 /// Structure used to hold data collected by the sensor hub.
 #[derive(Clone, Copy, Default)]
