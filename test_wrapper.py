@@ -14,6 +14,8 @@ import subprocess
 from pathlib import Path
 from os import environ
 from argparse import ArgumentParser
+import sys
+import pexpect
 
 # TODO: Better way to config this
 QEMU_PATH = f"{environ['HOME']}/qemu-xtensa/bin/qemu-system-xtensa"
@@ -33,11 +35,14 @@ def invoker() -> None:
     )
 
 
-def test_instance(binary: str) -> None:
+def test_instance(binary: str) -> bool:
     """Function to run an individually specified test binary and process it.
 
     Arguments:
         binary: The path to the binary to run.
+
+    Returns:
+        Boolean indicating if all tests passed or failed.
 
     """
     # TODO: use tempfile mopdule for a temp dir
@@ -62,21 +67,28 @@ def test_instance(binary: str) -> None:
     # Run the binary in QEMU
     # TODO: Realtime processing of output to detect finish/crash
     # Probably requires "expect" package
-    subprocess.run(
+    child = pexpect.spawn(
+        QEMU_PATH,
         [
-            QEMU_PATH,
             "-nographic",
             "-machine",
             "esp32",
             "-drive",
             f"file={target_file},if=mtd,format=raw"
-
         ],
-        check=True
+        encoding="utf-8"
     )
+    # Also print out to console the results
+    child.logfile_read = sys.stdout
+
+    # TODO: On abort message, previous line will be the failed test.
+    child.expect(r"(Returned from app_main\(\))|(abort\(\) was called at PC)")
+    passed = "Returned from app_main()" in child.after
+    child.send("\x01\x11cq")
 
     if target_file.exists():
         target_file.unlink()
+    return passed
 
 
 def main() -> None:
@@ -98,7 +110,9 @@ def main() -> None:
     if args.test_binary is None:
         invoker()
     else:
-        test_instance(args.test_binary)
+        result = test_instance(args.test_binary)
+        if not result:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
