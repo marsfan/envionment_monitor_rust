@@ -6,18 +6,18 @@ This expects a single argument passed in via the command line, which is
 the path to the binary to run. It will then use espflash to merge the
 binary into one that can be run in QEMU, and then run it in QEMU.
 
-Currently it does not support quitting QEMU at the end of the binary
-or if an error ocurrs. That functionality will be added later.
-
 """
 import subprocess
-from pathlib import Path
-from os import environ
-from argparse import ArgumentParser
 import sys
+import tempfile
+from argparse import ArgumentParser
+from os import environ
+from pathlib import Path
+
 import pexpect
 
-# TODO: Better way to config this
+# TODO: Better way to config this. CLI arg?
+
 QEMU_PATH = f"{environ['HOME']}/qemu-xtensa/bin/qemu-system-xtensa"
 
 
@@ -45,49 +45,50 @@ def test_instance(binary: str) -> bool:
         Boolean indicating if all tests passed or failed.
 
     """
-    # TODO: use tempfile mopdule for a temp dir
     target_file = Path("test.qemu")
 
-    # Generate the fully binary to run
-    subprocess.run(
-        [
-            "espflash",
-            "save-image",
-            "--merge",
-            "--chip",
-            "esp32",
-            "--partition-table",
-            "../environment-monitor/partition_table.csv",
-            binary,
-            target_file
-        ],
-        check=True
-    )
+    with tempfile.TemporaryDirectory() as temp_dir:
+        target_file = Path(temp_dir) / "test.qemu"
 
-    # Run the binary in QEMU
-    # TODO: Realtime processing of output to detect finish/crash
-    # Probably requires "expect" package
-    child = pexpect.spawn(
-        QEMU_PATH,
-        [
-            "-nographic",
-            "-machine",
-            "esp32",
-            "-drive",
-            f"file={target_file},if=mtd,format=raw"
-        ],
-        encoding="utf-8"
-    )
-    # Also print out to console the results
-    child.logfile_read = sys.stdout
+        # Generate the fully binary to run
+        subprocess.run(
+            [
+                "espflash",
+                "save-image",
+                "--merge",
+                "--chip",
+                "esp32",
+                "--partition-table",
+                "../environment-monitor/partition_table.csv",
+                binary,
+                target_file
+            ],
+            check=True
+        )
 
-    # TODO: On abort message, previous line will be the failed test.
-    child.expect(r"(Returned from app_main\(\))|(abort\(\) was called at PC)")
-    passed = "Returned from app_main()" in child.after
-    child.send("\x01\x11cq")
+        # Run the binary in QEMU
+        child = pexpect.spawn(
+            QEMU_PATH,
+            [
+                "-nographic",
+                "-machine",
+                "esp32",
+                "-drive",
+                f"file={target_file},if=mtd,format=raw"
+            ],
+            encoding="utf-8"
+        )
+        # Also print out to console the results
+        child.logfile_read = sys.stdout
 
-    if target_file.exists():
-        target_file.unlink()
+        # TODO: On abort message, previous line will be the failed test.
+        # Might want to log that.
+        child.expect(
+            r"(Returned from app_main\(\))|(abort\(\) was called at PC)"
+        )
+        passed = "Returned from app_main()" in child.after
+        child.send("\x01\x11cq")
+
     return passed
 
 
