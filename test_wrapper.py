@@ -11,18 +11,35 @@ or if an error ocurrs. That functionality will be added later.
 
 """
 import subprocess
-import sys
 from pathlib import Path
 from os import environ
+from argparse import ArgumentParser
 
 # TODO: Better way to config this
 QEMU_PATH = f"{environ['HOME']}/qemu-xtensa/bin/qemu-system-xtensa"
 
 
-def main() -> None:
-    """Run when function is called from CLI."""
-    test_binary = Path(sys.argv[1])
+# TODO: Support specifying the arch?
+def invoker() -> None:
+    """Function for the runner to act as the master that invokes cargo test."""
+    subprocess.run(
+        [
+            "cargo",
+            "test",
+            "--config",
+            "target.xtensa-esp32-espidf.runner = 'python3 ../test_wrapper.py'"
+        ],
+        check=True
+    )
 
+
+def test_instance(binary: str) -> None:
+    """Function to run an individually specified test binary and process it.
+
+    Arguments:
+        binary: The path to the binary to run.
+
+    """
     # TODO: use tempfile mopdule for a temp dir
     target_file = Path("test.qemu")
 
@@ -36,7 +53,7 @@ def main() -> None:
             "esp32",
             "--partition-table",
             "../environment-monitor/partition_table.csv",
-            test_binary,
+            binary,
             target_file
         ],
         check=True
@@ -60,6 +77,28 @@ def main() -> None:
 
     if target_file.exists():
         target_file.unlink()
+
+
+def main() -> None:
+    """Run when function is called from CLI."""
+
+    parser = ArgumentParser(
+        description="""Wrapper tool to run ESP32 unit test binaries in QEMU.
+        The behavior of the tool depends on the number of positional arguments supplied.
+        If none are supplied, it will act as the master runner, executing `cargo test` with the
+        necessary setting changes to invoke QEMU. If one argument is supplied, it
+        should be the path to the test binary that will be run."""
+    )
+    parser.add_argument(
+        "test_binary",
+        nargs="?",
+        help="Path to a binary to run. Leave unspecified to act as main runner"
+    )
+    args = parser.parse_args()
+    if args.test_binary is None:
+        invoker()
+    else:
+        test_instance(args.test_binary)
 
 
 if __name__ == "__main__":
