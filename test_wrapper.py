@@ -83,6 +83,7 @@ def test_instance(binary: str) -> bool:
 
         # TODO: On abort message, previous line will be the failed test.
         # Might want to log that.
+        # TODO: Only print out test result lines?
         child.expect(
             r"(Returned from app_main\(\))|(abort\(\) was called at PC)"
         )
