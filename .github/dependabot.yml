@@ -5,8 +5,23 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-  # Maintain dependencies for cargo
+  # Maintain dependencies for main toml file.
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
       interval: "daily"
+    allow:
+      dependency-type: "all"
+  # Maintain dependencies for individual packages
+  - package-ecosystem: "cargo"
+    directory: "/environment-monitor"
+    schedule:
+      interval: "daily"
+    allow:
+      dependency-type: "all"
+  - package-ecosystem: "cargo"
+    directory: "/veml7700"
+    schedule:
+      interval: "daily"
+    allow:
+      dependency-type: "all"
