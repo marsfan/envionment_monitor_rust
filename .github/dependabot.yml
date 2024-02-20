@@ -11,17 +11,17 @@ updates:
     schedule:
       interval: "daily"
     allow:
-      dependency-type: "all"
+      - dependency-type: "all"
   # Maintain dependencies for individual packages
   - package-ecosystem: "cargo"
     directory: "/environment-monitor"
     schedule:
       interval: "daily"
     allow:
-      dependency-type: "all"
+      - dependency-type: "all"
   - package-ecosystem: "cargo"
     directory: "/veml7700"
     schedule:
       interval: "daily"
     allow:
-      dependency-type: "all"
+      - dependency-type: "all"
