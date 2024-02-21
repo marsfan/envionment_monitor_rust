@@ -1,0 +1,1 @@
+cargo test --config "target.xtensa-esp32-espidf.runner = 'espflash flash --monitor --partition-table=../partition_table.csv'"

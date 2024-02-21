@@ -59,7 +59,7 @@ def test_instance(binary: str) -> bool:
                 "--chip",
                 "esp32",
                 "--partition-table",
-                "../environment-monitor/partition_table.csv",
+                "../partition_table.csv",
                 binary,
                 target_file
             ],
