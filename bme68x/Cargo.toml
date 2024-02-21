@@ -1,0 +1,44 @@
+[package]
+name = "bme68x"
+version = "0.1.0"
+edition = "2021"
+authors = ["Gabriel Roper <9311953+Marsfan@users.noreply.github.com>"]
+description = "Sensor Driver for the BME68x sensors"
+license = "MPL-2.0"
+keywords = ["sensor", "atmosphere", "pressure", "bme68x"]
+repository = "https://github.com/marsfan/envionment_monitor_rust"
+# TODO: get no-std support working
+categories = ["embedded", "hardware-support"]
+readme = "README.md"
+resolver = "2"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[build-dependencies]
+embuild = "0.31.4"
+
+[dependencies]
+esp-idf-sys = "0.*"
+
+
+[lints.clippy]
+all = "warn"
+correctness = "warn"
+suspicious = "warn"
+complexity = "warn"
+perf = "warn"
+pedantic = "warn"
+cargo = "warn"
+
+# Individual rules instead of groups
+missing_docs_in_private_items = "warn"
+# FIXME: Find out why this falsely reports some errors when enabled
+# cargo_common_metadata = "warn"
+unwrap_in_result = "warn"
+match_bool = "warn"
+uninlined_format_args = "warn"
+needless_pass_by_value = "warn"
+explicit_iter_loop = "warn"
+if_not_else = "allow"
+unreadable_literal = "allow"
+inline_always = "allow"
