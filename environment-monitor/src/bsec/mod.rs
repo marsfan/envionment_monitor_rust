@@ -40,9 +40,7 @@ use self::bsec_bindings::{
 use embedded_hal::i2c::I2c;
 use esp_idf_hal::delay::FreeRtos;
 
-use crate::bme68x::{
-    BME68xAddr, BME68xData, BME68xDev, BME68xError, BME68xIntf, BME68xOpMode, BME68xOs,
-};
+use bme68x::{BME68xAddr, BME68xData, BME68xDev, BME68xError, BME68xIntf, BME68xOpMode, BME68xOs};
 
 /// Enumeration of valid sample rates for the sensor
 #[allow(clippy::module_name_repetitions)]

@@ -123,6 +123,7 @@ checksum = "ed570934406eb16438a4e976b1b4500774099c13b8cb96eec99f620f05090ddf"
 name = "bme68x"
 version = "0.1.0"
 dependencies = [
+ "embedded-hal 1.0.0",
  "embuild",
  "esp-idf-sys",
 ]
@@ -543,6 +544,7 @@ name = "environment-monitor-rust"
 version = "0.1.0"
 dependencies = [
  "bindgen 0.69.4",
+ "bme68x",
  "embedded-hal 1.0.0",
  "embedded-hal-bus",
  "embuild",

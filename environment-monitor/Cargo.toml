@@ -16,6 +16,7 @@ bindings_header = "src/component_bindings.h"
 
 [dependencies]
 veml7700 = { path = "../veml7700" }
+bme68x = { path = "../bme68x" }
 log = { version = "0.4", default-features = false }
 esp-idf-svc = { version = "0.*" }
 esp-idf-hal = "0.*"

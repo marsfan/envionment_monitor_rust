@@ -18,6 +18,7 @@ resolver = "2"
 embuild = "0.31.4"
 
 [dependencies]
+embedded-hal = "1.0.0"
 esp-idf-sys = "0.*"
 
 
@@ -33,7 +34,7 @@ cargo = "warn"
 # Individual rules instead of groups
 missing_docs_in_private_items = "warn"
 # FIXME: Find out why this falsely reports some errors when enabled
-# cargo_common_metadata = "warn"
+cargo_common_metadata = "warn"
 unwrap_in_result = "warn"
 match_bool = "warn"
 uninlined_format_args = "warn"
