@@ -3,13 +3,37 @@
 This is a environment monitoring proram that reads from a few sensors, and
 publishes the data with MQTT.
 
+## Build Requirements
+
+To build the project, you will need the ESP32 rust toolchain. This can be
+be installed using the `espup` utility, which is installed with `cargo install espup`.
+
+Install the toolchain with `espup install --extended-llvm`
+
+Once the toolchain is installed, all cargo commands should be run with
+`cargo +esp COMMAND`, or you should set a directory override for the
+project directory using `rustup override set esp` on the project directory.
+
 ## Building
 
-There are a few things needed to build.
+There are a few changes that must be done to the codebase before it can be
+successfully built.
 
-1. When installing with `espup`, use the `--extended-llvm` flag.
-2. Before using `cargo build`, source the `~/export_esp.sh` file that `esup` added to your home directory
-3. The file `src/private_data.rs` which contains the following public constants.
+### Add the BSEC library
+
+The Bosch BSEC library is not released under an open-source license.
+Download it from <https://www.bosch-sensortec.com/software-tools/software/bme680-software-bsec/>
+and add the `inc` and `bin` folders to the
+[environment-monitor/src/bsec](/environment-monitor/src/bsec) directory
+
+
+### Confirgure Private Data
+
+There are a few configuration options that will be unique for each user.
+They are all set in the file
+[environment-monitor/src/private_data.rs](environment-monitor/src/private_data.rs)
+
+They are as follows:
 
 |          Name          |  Type  |                         Purpose                          |
 | ---------------------- | ------ | -------------------------------------------------------- |
