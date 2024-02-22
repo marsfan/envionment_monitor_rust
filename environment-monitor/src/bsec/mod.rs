@@ -420,7 +420,7 @@ impl<'a, I2C: I2c> Bsec<'a, I2C> {
     pub fn new(i2c: I2C, temp_offset: f32) -> Self {
         Self {
             bme: BME68xDev::new(i2c, BME68xAddr::HIGH, 25, BME68xIntf::I2CIntf, &|delay| {
-                FreeRtos::delay_ms(delay / 1000)
+                FreeRtos::delay_ms(delay / 1000);
             }),
             outputs: StructuredOutputs::new(),
             temp_offset,

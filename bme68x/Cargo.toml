@@ -33,7 +33,6 @@ cargo = "warn"
 
 # Individual rules instead of groups
 missing_docs_in_private_items = "warn"
-# FIXME: Find out why this falsely reports some errors when enabled
 cargo_common_metadata = "warn"
 unwrap_in_result = "warn"
 match_bool = "warn"
