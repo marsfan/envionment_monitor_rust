@@ -1,10 +1,11 @@
+#![no_std]
 //! BME68X Driver Implementation in pure rust.
 // TODO: Conditional FPU support?
 // TODO: Break this up into a few files to make it easier to read.
 
 // FIXME: Get this moved into cargo.toml. IDK why it is nt working there
 #![allow(clippy::unreadable_literal)]
-use std::num::TryFromIntError;
+use core::num::TryFromIntError;
 
 use embedded_hal::i2c::I2c;
 
@@ -1006,7 +1007,7 @@ impl BME68xHeatrConf {
 }
 
 /// BME68X Device Structure
-pub struct BME68xDev<I2C> {
+pub struct BME68xDev<'a, I2C> {
     // FIXME: Instead need to support I2C or SPI
     /// Concrete I2C Implementation
     i2c: I2C,
@@ -1039,7 +1040,7 @@ pub struct BME68xDev<I2C> {
     info_msg: BME68xError,
 
     /// Function to delay by a specific numebr of microseconds
-    delay_us: Box<dyn Fn(u32)>,
+    delay_us: &'a dyn Fn(u32),
 }
 
 impl From<BME68xAddr> for u8 {
@@ -1048,7 +1049,7 @@ impl From<BME68xAddr> for u8 {
     }
 }
 
-impl<I2C: I2c> BME68xDev<I2C> {
+impl<'a, I2C: I2c> BME68xDev<'a, I2C> {
     /// Create a new instance of the sensor
     ///
     /// # Arguments
@@ -1065,7 +1066,7 @@ impl<I2C: I2c> BME68xDev<I2C> {
         address: BME68xAddr,
         amb_temp: i8,
         intf: BME68xIntf,
-        delay_us: Box<dyn Fn(u32)>,
+        delay_us: &'a dyn Fn(u32),
     ) -> Self {
         Self {
             address,
@@ -1558,10 +1559,10 @@ impl<I2C: I2c> BME68xDev<I2C> {
         let mut data = [0; MAX_PROFILE_LEN];
 
         self.get_regs(BME68xRegister::ResHeat0.into(), &mut data)?;
-        conf.heatr_temp_prof = data.map(std::convert::Into::into);
+        conf.heatr_temp_prof = data.map(core::convert::Into::into);
 
         self.get_regs(BME68xRegister::GasWait0.into(), &mut data)?;
-        conf.heatr_dur_prof = data.map(std::convert::Into::into);
+        conf.heatr_dur_prof = data.map(core::convert::Into::into);
 
         Ok(conf)
     }

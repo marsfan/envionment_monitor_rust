@@ -386,9 +386,9 @@ impl StructuredOutputs {
 }
 
 /// Main BSEC Implementation structure
-pub struct Bsec<I2C> {
+pub struct Bsec<'a, I2C> {
     /// The BME68x device to use with the BSEC library
-    bme: BME68xDev<I2C>,
+    bme: BME68xDev<'a, I2C>,
 
     /// Output data from BSEC
     outputs: StructuredOutputs,
@@ -412,20 +412,16 @@ pub struct Bsec<I2C> {
 
 // TODO: Rust enum for bsec_virtual_sensor_t
 
-impl<I2C: I2c> Bsec<I2C> {
+impl<'a, I2C: I2c> Bsec<'a, I2C> {
     /// Initialize the device for use with the BSEC system
     /// # Arguments
     /// * `i2c`: The i2c bus to use for communication with the sensor
     /// * `temp_offset`: The offset to apply to the temperature measurement, to correct for sensor or enclosure bias.
     pub fn new(i2c: I2C, temp_offset: f32) -> Self {
         Self {
-            bme: BME68xDev::new(
-                i2c,
-                BME68xAddr::HIGH,
-                25,
-                BME68xIntf::I2CIntf,
-                Box::new(|delay| FreeRtos::delay_ms(delay / 1000)),
-            ),
+            bme: BME68xDev::new(i2c, BME68xAddr::HIGH, 25, BME68xIntf::I2CIntf, &|delay| {
+                FreeRtos::delay_ms(delay / 1000)
+            }),
             outputs: StructuredOutputs::new(),
             temp_offset,
             sensor_settings: bsec_bme_settings_t::new(),

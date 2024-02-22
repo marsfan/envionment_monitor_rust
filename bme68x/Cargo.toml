@@ -8,7 +8,7 @@ license = "MPL-2.0"
 keywords = ["sensor", "atmosphere", "pressure", "bme68x"]
 repository = "https://github.com/marsfan/envionment_monitor_rust"
 # TODO: get no-std support working
-categories = ["embedded", "hardware-support"]
+categories = ["embedded", "hardware-support", "no-std"]
 readme = "README.md"
 resolver = "2"
 
