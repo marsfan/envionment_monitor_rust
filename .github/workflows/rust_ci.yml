@@ -37,6 +37,6 @@ jobs:
           buildtargets: esp32
           ldproxy: true
       - name: Rename Dummy Private Info
-        run: mv src/dummy_private_data.rs src/private_data.rs
+        run: mv environment-monitor/src/dummy_private_data.rs environment-monitor/src/private_data.rs
       - name: Run command
         run: cargo ${{ matrix.action.command }} ${{ matrix.action.args }}
