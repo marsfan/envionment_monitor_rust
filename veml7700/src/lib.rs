@@ -638,7 +638,7 @@ impl<I2C: I2c> Veml7700<I2C> {
 #[no_mangle]
 #[cfg(test)]
 pub extern "C" fn app_main() {
-    println!("Hello World");
+    println!("What do I need to put here to execute all of my unit tests?");
 }
 
 #[cfg(test)]
