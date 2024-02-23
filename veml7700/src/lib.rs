@@ -1,4 +1,5 @@
-#![no_std]
+// #![no_std]
+#![feature(test)]
 //! Logic for accessing a VEML7700 sensor attached over I2C
 use embedded_hal::i2c::I2c;
 
@@ -631,5 +632,24 @@ impl<I2C: I2c> Veml7700<I2C> {
         let data_bytes = data.to_le_bytes();
         let tx_buf = [reg as u8, data_bytes[0], data_bytes[1]];
         self.i2c.write(VEML_ADDR, &tx_buf)
+    }
+}
+
+#[no_mangle]
+#[cfg(test)]
+pub extern "C" fn app_main() {
+    println!("Hello World");
+}
+
+#[cfg(test)]
+mod test {
+
+    #[test]
+    fn test_fail() {
+        assert_eq!(1, 2);
+    }
+    #[test]
+    fn test_pass() {
+        assert_eq!(2, 1);
     }
 }
