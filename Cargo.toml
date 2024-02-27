@@ -1,6 +1,7 @@
 [workspace]
-members = [ "bme68x","environment-monitor", "veml7700"]
+members = ["bme68x", "environment-monitor", "veml7700"]
 resolver = "2"
+
 
 [profile.release]
 opt-level = "s"

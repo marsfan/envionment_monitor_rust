@@ -1,13 +1,14 @@
-// #![no_std]
-#![feature(test)]
 //! Logic for accessing a VEML7700 sensor attached over I2C
+// Allow std for unit tests, but not normal builds.
+#![cfg_attr(not(test), no_std)]
+
 use embedded_hal::i2c::I2c;
 
 /// I2C Address of the sensor
 const VEML_ADDR: u8 = 0x10;
 
 /// Base scale for the sensor (at min gain and integration time)
-const ALS_BASE_SCALE: f32 = 0.0036;
+const ALS_BASE_SCALE: f32 = 0.0042;
 
 /// Enumeration of the VEML7700's registers
 #[repr(u8)]
@@ -562,6 +563,14 @@ impl<I2C: I2c> Veml7700<I2C> {
         self.last_output
     }
 
+    /// Destroy the sensor and return the I2C `embedded_hal_bus`
+    ///
+    /// # Returns
+    /// The I2C Bus.
+    pub fn destroy(self) -> I2C {
+        self.i2c
+    }
+
     /// Write to the power saving register
     ///
     /// # Arguments
@@ -635,21 +644,96 @@ impl<I2C: I2c> Veml7700<I2C> {
     }
 }
 
-#[no_mangle]
-#[cfg(test)]
-pub extern "C" fn app_main() {
-    println!("What do I need to put here to execute all of my unit tests?");
-}
-
 #[cfg(test)]
 mod test {
 
+    use super::*;
+    use embedded_hal_mock::eh1::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
+    // Without this use statement, unit tests will not run in the library crate.
+    // Not sure why, but it is what it is.
+    #[allow(unused_imports, clippy::single_component_path_imports)]
+    use esp_idf_sys;
+
     #[test]
-    fn test_fail() {
-        assert_eq!(1, 2);
+    /// Test proper operation of the `write_u16` function.
+    fn test_write_u16() {
+        let expectations = [I2cTransaction::write(VEML_ADDR, vec![1, 2, 3])];
+        let interface = I2cMock::new(&expectations);
+        let mut device = Veml7700::new(interface);
+        device
+            .write_u16(VemlRegister::ALSHighThreshold, 0x0302)
+            .unwrap();
+        let mut interface = device.destroy();
+        interface.done();
     }
+
     #[test]
-    fn test_pass() {
-        assert_eq!(2, 1);
+    /// Test proper operation of the `write_read_u16` function.
+    fn test_write_read_u16() {
+        let expectations = [I2cTransaction::write_read(VEML_ADDR, vec![1], vec![2, 3])];
+        let interface = I2cMock::new(&expectations);
+        let mut device = Veml7700::new(interface);
+        let response = device.write_read_u16(VemlRegister::ALSHighThreshold);
+        assert_eq!(response, Ok(0x0302));
+        let mut interface = device.destroy();
+        interface.done();
+    }
+
+    // TODO: Method to test `write_internal_configuration`.
+
+    /// Test the `get_als_scale` function.
+    #[test]
+    fn test_get_als_scale() {
+        // Scale values from the table "RESOLUTION AND MAXIMUM DETECTION RANGE"
+        // In vishay application note "Designing the VEML7700 Into an Application"
+        let cases = [
+            // 800ms integration time cases
+            (VemlIntegration::Int800, VemlGain::Gain2, 0.0042),
+            (VemlIntegration::Int800, VemlGain::Gain1, 0.0084),
+            (VemlIntegration::Int800, VemlGain::Gain1_4, 0.0336),
+            (VemlIntegration::Int800, VemlGain::Gain1_8, 0.0672),
+            // 400ms integration time cases
+            (VemlIntegration::Int400, VemlGain::Gain2, 0.0084),
+            (VemlIntegration::Int400, VemlGain::Gain1, 0.0168),
+            (VemlIntegration::Int400, VemlGain::Gain1_4, 0.0672),
+            (VemlIntegration::Int400, VemlGain::Gain1_8, 0.1344),
+            // 200 ms integration time cases
+            (VemlIntegration::Int200, VemlGain::Gain2, 0.0168),
+            (VemlIntegration::Int200, VemlGain::Gain1, 0.0336),
+            (VemlIntegration::Int200, VemlGain::Gain1_4, 0.1344),
+            (VemlIntegration::Int200, VemlGain::Gain1_8, 0.2688),
+            // 100 ms integration time cases
+            (VemlIntegration::Int100, VemlGain::Gain2, 0.0336),
+            (VemlIntegration::Int100, VemlGain::Gain1, 0.0672),
+            (VemlIntegration::Int100, VemlGain::Gain1_4, 0.2688),
+            (VemlIntegration::Int100, VemlGain::Gain1_8, 0.5376),
+            // 50 ms integration time cases
+            (VemlIntegration::Int50, VemlGain::Gain2, 0.0672),
+            (VemlIntegration::Int50, VemlGain::Gain1, 0.1344),
+            (VemlIntegration::Int50, VemlGain::Gain1_4, 0.5376),
+            (VemlIntegration::Int50, VemlGain::Gain1_8, 1.0752),
+            // 25 ms integration time cases
+            (VemlIntegration::Int25, VemlGain::Gain2, 0.1344),
+            (VemlIntegration::Int25, VemlGain::Gain1, 0.2688),
+            (VemlIntegration::Int25, VemlGain::Gain1_4, 1.0752),
+            (VemlIntegration::Int25, VemlGain::Gain1_8, 2.1504),
+        ];
+
+        let expectations = [];
+        let interface = I2cMock::new(&expectations);
+        let mut device = Veml7700::new(interface);
+
+        for (integration, gain, scale) in cases {
+            device.configuration.gain = gain;
+            device.configuration.integration_time = integration;
+            let computed_scale = device.get_als_scale();
+
+            // VEML datasheet provides to 4 decimnal places, so becuase float are a pain,
+            // check the value we got is ok to 5 decimal places.
+            let diff = computed_scale - scale;
+            assert!(diff.abs() < 0.00001);
+        }
+
+        device.destroy().done();
     }
 }
