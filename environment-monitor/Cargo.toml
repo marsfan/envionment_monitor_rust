@@ -20,7 +20,7 @@ bme68x = { path = "../bme68x" }
 log = { version = "0.4", default-features = false }
 esp-idf-svc = { version = "0.*" }
 esp-idf-hal = "0.*"
-thiserror = "1.0.56"
+thiserror = "1.0.58"
 esp-idf-sys = "0.*"
 embedded-hal = "1.0.0"
 embedded-hal-bus = { version = "0.1.0", features = ["std"] }
